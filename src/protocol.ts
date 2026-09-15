@@ -96,7 +96,10 @@ export type MiniAppEventMap = {
   qrTextReceived: { data: string };
   qrScannerClosed: undefined;
   accelerometerChanged: { x: number; y: number; z: number };
+  accelerometerFailed: { reason?: string };
   gyroscopeChanged: { x: number; y: number; z: number };
+  gyroscopeFailed: { reason?: string };
+  orientationFailed: { reason?: string };
   orientationChanged: {
     absolute: boolean;
     alpha: number;
