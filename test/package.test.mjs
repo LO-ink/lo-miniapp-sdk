@@ -1,12 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  mkdtempSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -37,18 +31,19 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
       temporary,
       "consumer",
       "node_modules",
-      "@lo",
+      "@lo-ink",
       "miniapp-sdk",
     );
     mkdirSync(packDirectory, { recursive: true });
     mkdirSync(packageDirectory, { recursive: true });
-    run("npm", ["pack", "--pack-destination", packDirectory, "--json"], {
-      env: { ...process.env, npm_config_cache: join(temporary, "npm-cache") },
-    });
-    const archive = join(
-      packDirectory,
-      readdirSync(packDirectory).find((name) => name.endsWith(".tgz")),
-    );
+    const packed = JSON.parse(
+      run("npm", ["pack", "--pack-destination", packDirectory, "--json"], {
+        env: { ...process.env, npm_config_cache: join(temporary, "npm-cache") },
+      }),
+    )[0];
+    assert.equal(packed.name, "@lo-ink/miniapp-sdk");
+    assert.equal(packed.version, "0.19.0");
+    const archive = join(packDirectory, packed.filename);
     run("tar", [
       "-xzf",
       archive,
@@ -69,15 +64,15 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
     const consumer = dirname(dirname(dirname(packageDirectory)));
     writeFileSync(
       join(consumer, "esm.mts"),
-      'import { type Capability } from "@lo/miniapp-sdk"; const value: Capability = "invoice"; void value;\n',
+      'import { type Capability } from "@lo-ink/miniapp-sdk"; const value: Capability = "invoice"; void value;\n',
     );
     writeFileSync(
       join(consumer, "cjs.cts"),
-      'import sdk = require("@lo/miniapp-sdk"); const value: sdk.MiniAppError = new sdk.MiniAppError("failed"); void value;\n',
+      'import sdk = require("@lo-ink/miniapp-sdk"); const value: sdk.MiniAppError = new sdk.MiniAppError("failed"); void value;\n',
     );
     writeFileSync(
       join(consumer, "bundler.ts"),
-      'import { MINI_APP_PROTOCOL_VERSION } from "@lo/miniapp-sdk/protocol"; const value: 1 = MINI_APP_PROTOCOL_VERSION; void value;\n',
+      'import { MINI_APP_PROTOCOL_VERSION } from "@lo-ink/miniapp-sdk/protocol"; const value: 1 = MINI_APP_PROTOCOL_VERSION; void value;\n',
     );
     const tsc = join(root, "node_modules", "typescript", "bin", "tsc");
     const common = [

@@ -3,8 +3,8 @@
 Platform-neutral TypeScript contract and imperative client for LO Mini Apps. It has no runtime dependencies, performs no host discovery, installs no globals, and is safe to import during server rendering.
 
 ```ts
-import { createMiniAppClient, requestWriteAccess } from "@lo/miniapp-sdk";
-import { createAdapter } from "@lo/adapter-lo";
+import { createMiniAppClient, requestWriteAccess } from "@lo-ink/miniapp-sdk";
+import { createAdapter } from "@lo-ink/adapter-lo";
 
 const adapter = createAdapter();
 if (adapter) {
