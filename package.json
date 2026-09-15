@@ -1,0 +1,65 @@
+{
+  "name": "@lo/miniapp-sdk",
+  "version": "0.19.0",
+  "description": "Typed, platform-neutral SDK for LO Mini Apps",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "dist-cjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist-cjs/index.d.ts",
+        "default": "./dist-cjs/index.js"
+      }
+    },
+    "./protocol": {
+      "import": {
+        "types": "./dist/protocol.d.ts",
+        "default": "./dist/protocol.js"
+      },
+      "require": {
+        "types": "./dist-cjs/protocol.d.ts",
+        "default": "./dist-cjs/protocol.js"
+      }
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "protocol": [
+        "dist/protocol.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "format:check": "prettier --check .",
+    "test": "npm run build && node --test test/architecture.test.mjs test/client.test.mjs test/formats.test.mjs && node --test test/package.test.mjs",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lo-ink/lo-miniapp-sdk.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}
