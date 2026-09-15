@@ -1,0 +1,4 @@
+node_modules
+dist
+dist-cjs
+package-lock.json
