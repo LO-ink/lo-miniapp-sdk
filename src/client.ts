@@ -195,12 +195,13 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
           pending.add(disposeRequest);
           try {
             options.signal?.addEventListener("abort", abort, { once: true });
+            if (settled) return;
+            if (options.signal?.aborted) {
+              abort();
+              return;
+            }
           } catch (error) {
             finish({ ok: false, error });
-            return;
-          }
-          if (options.signal?.aborted) {
-            abort();
             return;
           }
           timer = setTimeout(

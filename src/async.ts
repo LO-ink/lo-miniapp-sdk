@@ -65,11 +65,12 @@ export async function withHostCallback<T>(
     const abort = () => settleFailure(new MiniAppError("aborted"));
     try {
       options.signal?.addEventListener("abort", abort, { once: true });
+      if (settled) return;
+      if (options.signal?.aborted) return abort();
     } catch (error) {
       settleFailure(error);
       return;
     }
-    if (options.signal?.aborted) return abort();
     timer = setTimeout(
       () => settleFailure(new MiniAppError("timeout")),
       timeoutMs,
