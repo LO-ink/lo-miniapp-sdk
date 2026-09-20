@@ -89,6 +89,25 @@ test("rejects unsupported operations before invoking adapter", async () => {
   assert.equal(invoked, false);
 });
 
+test("close and selection haptic are public canonical operations", async () => {
+  const calls = [];
+  const client = createMiniAppClient(
+    adapter({
+      capabilities: new Set(["close", "haptics"]),
+      execute: (operation, input) => {
+        calls.push([operation, input]);
+        return Promise.resolve();
+      },
+    }),
+  );
+  await client.call("close", undefined);
+  await client.call("haptic", { kind: "selection" });
+  assert.deepEqual(calls, [
+    ["close", undefined],
+    ["haptic", { kind: "selection" }],
+  ]);
+});
+
 test("listener registration and cleanup failures still settle requests", async () => {
   for (const failMethod of ["addEventListener", "removeEventListener"]) {
     const signal = new AbortController().signal;

@@ -1,6 +1,7 @@
 /** Stable, platform-neutral features a host can advertise. */
 export const MINI_APP_CAPABILITIES = [
   "ready",
+  "close",
   "expand",
   "fullscreen",
   "hideKeyboard",
@@ -149,6 +150,7 @@ export type RequestContext = { signal?: AbortSignal };
 
 export type MiniAppOperationMap = {
   ready: { input: undefined; output: void };
+  close: { input: undefined; output: void };
   expand: { input: undefined; output: void };
   requestFullscreen: { input: undefined; output: void };
   exitFullscreen: { input: undefined; output: void };
@@ -172,7 +174,8 @@ export type MiniAppOperationMap = {
         | "medium"
         | "heavy"
         | "rigid"
-        | "soft";
+        | "soft"
+        | "selection";
     };
     output: void;
   };
