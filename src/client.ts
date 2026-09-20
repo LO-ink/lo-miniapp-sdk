@@ -15,6 +15,7 @@ const MAX_TIMEOUT_MS = 2_147_483_647;
 
 const operationCapability: Partial<Record<MiniAppOperation, Capability>> = {
   ready: "ready",
+  close: "close",
   expand: "expand",
   requestFullscreen: "fullscreen",
   exitFullscreen: "fullscreen",

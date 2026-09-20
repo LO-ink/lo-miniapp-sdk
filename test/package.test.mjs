@@ -42,7 +42,7 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
       }),
     )[0];
     assert.equal(packed.name, "@lo-ink/miniapp-sdk");
-    assert.equal(packed.version, "0.19.0");
+    assert.equal(packed.version, "0.19.1");
     const archive = join(packDirectory, packed.filename);
     run("tar", [
       "-xzf",
