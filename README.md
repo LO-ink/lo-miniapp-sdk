@@ -87,6 +87,8 @@ version strings and internal server RPC schemas.
 - Appearance uses semantic color roles (`background`, `text`, `action`) and
   normalized viewport and safe-area values.
 - Buttons, fullscreen, orientation, haptics and popups use typed operations.
+- `setVerticalSwipes` controls host dismissal without disabling page scrolling.
+- Story sharing presents the native editor; only the user can publish a story.
 - Permissions, location, biometry, sensors, QR and clipboard remain host-owned.
 - Sharing, links, file downloads and storage require their own capabilities.
 - Invoice results are `paid | cancelled | failed | pending`; declaring an

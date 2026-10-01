@@ -91,3 +91,23 @@ test("reentrant transport cancellation cannot replace an abort or timeout outcom
     assert.equal(cleanups, 1);
   }
 });
+
+test("vertical swipe configuration is a typed LO capability", async () => {
+  const calls = [];
+  const client = createMiniAppClient(
+    adapter({
+      capabilities: new Set(["verticalSwipes"]),
+      execute(operation, input) {
+        calls.push([operation, input]);
+        return Promise.resolve();
+      },
+    }),
+  );
+  await client.call("setVerticalSwipes", { enabled: false });
+  await client.call("setVerticalSwipes", { enabled: true });
+  assert.deepEqual(calls, [
+    ["setVerticalSwipes", { enabled: false }],
+    ["setVerticalSwipes", { enabled: true }],
+  ]);
+  client.dispose();
+});

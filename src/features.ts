@@ -32,7 +32,7 @@ function validateStoryUrl(
 ): asserts value is string {
   if (
     typeof value !== "string" ||
-    value.length > 8192 ||
+    value.length > (media ? 8192 : 2048) ||
     !/^https?:\/\//i.test(value) ||
     /[\s\\\u0000-\u001f\u007f]/.test(value)
   ) {
@@ -72,4 +72,15 @@ export async function shareToStory(
     }
   }
   return client.call("shareToStory", { mediaUrl, params }, options);
+}
+
+/** Controls the host's vertical dismissal gesture, not page scrolling. */
+export function setVerticalSwipes(
+  client: MiniAppClient,
+  enabled: boolean,
+  options?: CallOptions,
+) {
+  if (typeof enabled !== "boolean")
+    return Promise.reject(new TypeError("enabled must be a boolean"));
+  return client.call("setVerticalSwipes", { enabled }, options);
 }

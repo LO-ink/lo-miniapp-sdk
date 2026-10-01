@@ -8,6 +8,8 @@
 - Reject invalid adapters at construction and unknown JavaScript operations
   before host resources are acquired.
 - Make the operation-to-capability map exhaustive at compile time.
+- Add typed vertical dismissal controls, negotiated through the own native port.
+- Story presentation uses a 60-second preparation deadline and the native link-length bound.
 - Enforce source and distribution boundaries with architecture tests.
 
 The native integration is `@lo-ink/adapter-lo` 0.22. Older host compatibility

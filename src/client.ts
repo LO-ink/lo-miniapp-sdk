@@ -23,6 +23,7 @@ const operationCapability = {
   setOrientationLock: "orientation",
   setButton: "mainButton",
   setClosingConfirmation: "closingConfirmation",
+  setVerticalSwipes: "verticalSwipes",
   setHeaderColor: "headerColor",
   setBackgroundColor: "backgroundColor",
   setBottomBarColor: "bottomBarColor",
@@ -71,6 +72,7 @@ const operationCapability = {
 } as const satisfies Record<MiniAppOperation, Capability>;
 
 const defaultTimeout: Partial<Record<MiniAppOperation, number>> = {
+  shareToStory: 60_000,
   requestWriteAccess: 60_000,
   requestContact: 60_000,
   shareMessage: 300_000,
