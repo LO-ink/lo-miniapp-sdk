@@ -111,3 +111,35 @@ test("vertical swipe configuration is a typed LO capability", async () => {
   ]);
   client.dispose();
 });
+
+test("transport abort precedes cleanup for cancellation, timeout and disposal", async () => {
+  for (const reason of ["aborted", "timeout", "disposed"]) {
+    const external = new AbortController();
+    const events = [];
+    const client = createMiniAppClient(
+      adapter({
+        execute(_operation, _input, { signal }) {
+          const cancelTransport = () => events.push("abort");
+          signal.addEventListener("abort", cancelTransport);
+          return {
+            promise: new Promise(() => {}),
+            cleanup() {
+              assert.equal(signal.aborted, true);
+              events.push("cleanup");
+              signal.removeEventListener("abort", cancelTransport);
+            },
+          };
+        },
+      }),
+    );
+    const pending = client.call("readClipboard", undefined, {
+      signal: external.signal,
+      timeoutMs: reason === "timeout" ? 5 : 1000,
+    });
+    if (reason === "aborted") external.abort();
+    if (reason === "disposed") client.dispose();
+    await assert.rejects(pending, { code: reason });
+    assert.deepEqual(events, ["abort", "cleanup"]);
+    client.dispose();
+  }
+});

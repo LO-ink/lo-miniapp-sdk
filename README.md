@@ -43,6 +43,10 @@ Event availability is supplied by the host. If an event cannot be subscribed to,
 `client.on` throws `MiniAppError` with code `unsupported`. Unsubscribe functions
 are idempotent; released listeners do not receive retained callbacks.
 
+`bindAppearance` starts from the host snapshot and system preference, then binds
+only available appearance events. Missing optional events do not stop startup;
+other subscription failures still propagate after acquired listeners are released.
+
 ## Permissions and requests
 
 ```ts

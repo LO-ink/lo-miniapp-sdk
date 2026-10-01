@@ -52,10 +52,26 @@ export function bindAppearance(
   const releases: Array<() => void> = [];
   try {
     releases.push(environment.onPreferenceChange(update));
-    releases.push(client.on("themeChanged", update));
-    releases.push(client.on("viewportChanged", update));
-    releases.push(client.on("safeAreaChanged", update));
-    releases.push(client.on("contentSafeAreaChanged", update));
+    for (const event of [
+      "themeChanged",
+      "viewportChanged",
+      "safeAreaChanged",
+      "contentSafeAreaChanged",
+    ] as const) {
+      try {
+        releases.push(client.on(event, update));
+      } catch (error) {
+        // Appearance is optional. Keep the initial snapshot, system preference
+        // and every event the host actually provides; propagate real failures.
+        if (
+          !error ||
+          typeof error !== "object" ||
+          !("code" in error) ||
+          error.code !== "unsupported"
+        )
+          throw error;
+      }
+    }
   } catch (error) {
     for (const release of releases) {
       try {

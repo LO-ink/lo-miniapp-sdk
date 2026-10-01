@@ -357,7 +357,7 @@ test("appearance binding releases earlier listeners when a later subscription fa
     adapter({
       subscribe: () => {
         subscriptions++;
-        if (subscriptions === 2) throw new MiniAppError("unsupported");
+        if (subscriptions === 2) throw new MiniAppError("failed");
         return () => adapterReleased++;
       },
     }),
@@ -370,7 +370,7 @@ test("appearance binding releases earlier listeners when a later subscription fa
   };
   assert.throws(
     () => bindAppearance(client, environment),
-    (error) => error.code === "unsupported",
+    (error) => error.code === "failed",
   );
   assert.equal(preferenceReleased, 1);
   assert.equal(adapterReleased, 1);
@@ -395,6 +395,50 @@ test("appearance binding does not invoke lifecycle operations", () => {
   });
   release();
   assert.equal(calls, 0);
+});
+
+test("appearance uses snapshots and available events when host events are optional", () => {
+  for (const available of [[], ["themeChanged"]]) {
+    let snapshot = { colorScheme: "dark", safeArea: { top: 12 } };
+    const listeners = new Map();
+    let preferenceChanged;
+    let preferenceReleased = 0;
+    const client = createMiniAppClient(
+      adapter({
+        snapshot: () => snapshot,
+        subscribe(event, listener) {
+          if (!available.includes(event)) throw new MiniAppError("unsupported");
+          listeners.set(event, listener);
+          return () => listeners.delete(event);
+        },
+      }),
+    );
+    const properties = new Map();
+    const root = {
+      dataset: {},
+      style: { setProperty: (key, value) => properties.set(key, value) },
+    };
+    const release = bindAppearance(client, {
+      root,
+      prefersDark: () => false,
+      background: () => "",
+      onPreferenceChange(listener) {
+        preferenceChanged = listener;
+        return () => preferenceReleased++;
+      },
+    });
+    assert.equal(root.dataset.theme, "dark");
+    assert.equal(properties.get("--host-top"), "12px");
+    snapshot = { colorScheme: "light", safeArea: { top: 20 } };
+    if (available.length) listeners.get("themeChanged")();
+    else preferenceChanged();
+    assert.equal(root.dataset.theme, "light");
+    assert.equal(properties.get("--host-top"), "20px");
+    release();
+    assert.equal(listeners.size, 0);
+    assert.equal(preferenceReleased, 1);
+    client.dispose();
+  }
 });
 
 test("rechecks an external signal after installing its listener", async () => {

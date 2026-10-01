@@ -205,7 +205,7 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
               /* Cleanup must not change the result. */
             }
           };
-          const finish = (outcome: Outcome) => {
+          const finish = (outcome: Outcome, abortReason?: MiniAppError) => {
             if (settled) return;
             settled = true;
             if (timer !== undefined) clearTimeout(timer);
@@ -215,15 +215,22 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
               /* Preserve request settlement. */
             }
             pending.delete(disposeRequest);
+            // Reserve the outcome before reentrant abort listeners run, but
+            // notify transport before cleanup can detach its cancellation hook.
+            if (abortReason && !controller.signal.aborted) {
+              try {
+                controller.abort(abortReason);
+              } catch {
+                /* A transport listener must not prevent final settlement. */
+              }
+            }
             runCleanup();
             if (outcome.ok) resolve(outcome.value);
             else reject(normalizeMiniAppError(outcome.error));
           };
           const cancel = (reason: MiniAppError) => {
             if (settled) return;
-            // Commit the outcome before notifying reentrant transport listeners.
-            finish({ ok: false, error: reason });
-            if (!controller.signal.aborted) controller.abort(reason);
+            finish({ ok: false, error: reason }, reason);
           };
           const abort = () => cancel(new MiniAppError("aborted"));
           const disposeRequest = (reason: MiniAppError) => cancel(reason);

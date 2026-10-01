@@ -4,6 +4,9 @@
 
 - Preserve the original abort/timeout outcome when transport cancellation
   synchronously disposes the client.
+- Notify transport cancellation before cleanup detaches its abort listener.
+- Bind appearance from snapshots and available events on partial hosts; real
+  subscription failures still propagate and release acquired resources.
 - Stop retained event callbacks after unsubscribe or client disposal.
 - Reject invalid adapters at construction and unknown JavaScript operations
   before host resources are acquired.
