@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -42,7 +48,10 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
       }),
     )[0];
     assert.equal(packed.name, "@lo-ink/miniapp-sdk");
-    assert.equal(packed.version, "0.19.1");
+    assert.equal(
+      packed.version,
+      JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version,
+    );
     const archive = join(packDirectory, packed.filename);
     run("tar", [
       "-xzf",
@@ -62,6 +71,31 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
     assert.equal(typeof cjs.createMiniAppClient, "function");
 
     const consumer = dirname(dirname(dirname(packageDirectory)));
+    run(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { createMiniAppClient } from '@lo-ink/miniapp-sdk';
+      import { MINI_APP_PROTOCOL_VERSION } from '@lo-ink/miniapp-sdk/protocol';
+      if (typeof createMiniAppClient !== 'function' || MINI_APP_PROTOCOL_VERSION !== 1) throw new Error('ESM public exports failed');
+    `,
+      ],
+      { cwd: consumer },
+    );
+    run(
+      process.execPath,
+      [
+        "-e",
+        `
+      const { createMiniAppClient } = require('@lo-ink/miniapp-sdk');
+      const { MINI_APP_PROTOCOL_VERSION } = require('@lo-ink/miniapp-sdk/protocol');
+      if (typeof createMiniAppClient !== 'function' || MINI_APP_PROTOCOL_VERSION !== 1) throw new Error('CommonJS public exports failed');
+    `,
+      ],
+      { cwd: consumer },
+    );
     writeFileSync(
       join(consumer, "esm.mts"),
       'import { type Capability } from "@lo-ink/miniapp-sdk"; const value: Capability = "invoice"; void value;\n',

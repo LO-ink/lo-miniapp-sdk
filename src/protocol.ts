@@ -11,6 +11,7 @@ export const MINI_APP_CAPABILITIES = [
   "secondaryButton",
   "settingsButton",
   "closingConfirmation",
+  "verticalSwipes",
   "headerColor",
   "backgroundColor",
   "bottomBarColor",
@@ -161,6 +162,7 @@ export type MiniAppOperationMap = {
     output: void;
   };
   setClosingConfirmation: { input: { enabled: boolean }; output: void };
+  setVerticalSwipes: { input: { enabled: boolean }; output: void };
   setHeaderColor: { input: { color: string }; output: void };
   setBackgroundColor: { input: { color: string }; output: void };
   setBottomBarColor: { input: { color: string }; output: void };

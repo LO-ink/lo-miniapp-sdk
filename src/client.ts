@@ -13,7 +13,7 @@ import type {
 export type CallOptions = { signal?: AbortSignal; timeoutMs?: number };
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
-const operationCapability: Partial<Record<MiniAppOperation, Capability>> = {
+const operationCapability = {
   ready: "ready",
   close: "close",
   expand: "expand",
@@ -23,6 +23,7 @@ const operationCapability: Partial<Record<MiniAppOperation, Capability>> = {
   setOrientationLock: "orientation",
   setButton: "mainButton",
   setClosingConfirmation: "closingConfirmation",
+  setVerticalSwipes: "verticalSwipes",
   setHeaderColor: "headerColor",
   setBackgroundColor: "backgroundColor",
   setBottomBarColor: "bottomBarColor",
@@ -68,9 +69,10 @@ const operationCapability: Partial<Record<MiniAppOperation, Capability>> = {
   secureStorageRestore: "secureStorage",
   secureStorageRemove: "secureStorage",
   secureStorageClear: "secureStorage",
-};
+} as const satisfies Record<MiniAppOperation, Capability>;
 
 const defaultTimeout: Partial<Record<MiniAppOperation, number>> = {
+  shareToStory: 60_000,
   requestWriteAccess: 60_000,
   requestContact: 60_000,
   shareMessage: 300_000,
@@ -99,6 +101,17 @@ export interface MiniAppClient {
 }
 
 export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
+  if (
+    !adapter ||
+    typeof adapter.id !== "string" ||
+    !adapter.id ||
+    typeof adapter.launchData !== "string" ||
+    typeof adapter.capabilities?.has !== "function" ||
+    typeof adapter.snapshot !== "function" ||
+    typeof adapter.subscribe !== "function" ||
+    typeof adapter.execute !== "function"
+  )
+    throw new TypeError("Expected a Mini App adapter");
   let disposed = false;
   const subscriptions = new Set<() => void>();
   const pending = new Set<(reason: MiniAppError) => void>();
@@ -114,7 +127,11 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
     on(event, listener) {
       if (disposed) return () => {};
       let active = true;
-      const releaseAdapter = adapter.subscribe(event, listener);
+      if (typeof listener !== "function")
+        throw new TypeError("Expected an event listener");
+      const releaseAdapter = adapter.subscribe(event, (payload) => {
+        if (active && !disposed) listener(payload);
+      });
       const release = () => {
         if (!active) return;
         active = false;
@@ -134,6 +151,21 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
     async call(operation, input, options = {}) {
       if (disposed) throw new MiniAppError("disposed");
       options = readRequestOptions(options);
+      if (
+        typeof operation !== "string" ||
+        !Object.hasOwn(operationCapability, operation)
+      ) {
+        throw new MiniAppError("unsupported", "Unknown Mini App operation");
+      }
+      if (
+        operation === "setButton" &&
+        (!input ||
+          typeof input !== "object" ||
+          !["back", "main", "secondary", "settings"].includes(
+            (input as { button: string }).button,
+          ))
+      )
+        throw new TypeError("Expected a valid button identifier");
       const capability =
         operation === "setButton"
           ? (`${(input as { button: string }).button}Button` as Capability)
@@ -173,7 +205,7 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
               /* Cleanup must not change the result. */
             }
           };
-          const finish = (outcome: Outcome) => {
+          const finish = (outcome: Outcome, abortReason?: MiniAppError) => {
             if (settled) return;
             settled = true;
             if (timer !== undefined) clearTimeout(timer);
@@ -183,13 +215,22 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
               /* Preserve request settlement. */
             }
             pending.delete(disposeRequest);
+            // Reserve the outcome before reentrant abort listeners run, but
+            // notify transport before cleanup can detach its cancellation hook.
+            if (abortReason && !controller.signal.aborted) {
+              try {
+                controller.abort(abortReason);
+              } catch {
+                /* A transport listener must not prevent final settlement. */
+              }
+            }
             runCleanup();
             if (outcome.ok) resolve(outcome.value);
             else reject(normalizeMiniAppError(outcome.error));
           };
           const cancel = (reason: MiniAppError) => {
-            if (!controller.signal.aborted) controller.abort(reason);
-            finish({ ok: false, error: reason });
+            if (settled) return;
+            finish({ ok: false, error: reason }, reason);
           };
           const abort = () => cancel(new MiniAppError("aborted"));
           const disposeRequest = (reason: MiniAppError) => cancel(reason);
