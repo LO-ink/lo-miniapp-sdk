@@ -1,6 +1,6 @@
 {
   "name": "@lo-ink/miniapp-sdk",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "description": "Typed LO Mini App API, protocol and lifecycle without host or compatibility dependencies",
   "type": "module",
   "license": "MIT",
@@ -32,6 +32,16 @@
         "types": "./dist-cjs/protocol.d.ts",
         "default": "./dist-cjs/protocol.js"
       }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server.d.ts",
+        "default": "./dist/server.js"
+      },
+      "require": {
+        "types": "./dist-cjs/server.d.ts",
+        "default": "./dist-cjs/server.js"
+      }
     }
   },
   "types": "./dist/index.d.ts",
@@ -39,6 +49,9 @@
     "*": {
       "protocol": [
         "dist/protocol.d.ts"
+      ],
+      "server": [
+        "dist/server.d.ts"
       ]
     }
   },
@@ -46,7 +59,7 @@
     "build": "node scripts/build.mjs",
     "check": "tsc --noEmit",
     "format:check": "prettier --check .",
-    "test": "npm run build && node --test test/architecture.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs && node --test test/package.test.mjs",
+    "test": "npm run build && node --test test/architecture.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs test/launch.test.mjs test/server.test.mjs test/safe-area.test.mjs && node --test test/package.test.mjs",
     "prepack": "npm run build"
   },
   "engines": {
@@ -61,6 +74,7 @@
   },
   "devDependencies": {
     "prettier": "3.6.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/node": "22.18.6"
   }
 }

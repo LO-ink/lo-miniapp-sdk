@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.0
+
+- Added isolated Node /server initData verifier and public stdlib Go module with shared adversarial vectors.
+- Added launchUnsafe display parsing with exact string IDs and constrained avatar URLs.
+- Added safe-area CSS binding and typed NoBot support for updated native hosts.
+
 ## 0.19.2 — prepared release
 
 - Preserve the original abort/timeout outcome when transport cancellation

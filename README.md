@@ -76,6 +76,7 @@ never retried automatically.
 | `disposed`         | The client owner released the client             |
 | `invalid-response` | The adapter rejected an invalid host result      |
 | `failed`           | The host or transport failed                     |
+| `no-bot`           | Native host reports no bot linked to the app     |
 
 Invalid adapter contracts, button identifiers and request option shapes fail
 with `TypeError`. Invalid deadlines fail with `RangeError`. Capabilities describe
@@ -128,3 +129,53 @@ npm pack --dry-run
 CI exercises Node 20, 22 and 24. Architecture checks cover nested source,
 built JavaScript and declarations, and reject host or compatibility dependencies.
 See [CHANGELOG.md](CHANGELOG.md) for the prepared release set.
+
+## Registered launch data
+
+```ts
+// Browser: display only. Never authenticate or choose a bot recipient with this.
+const launch = client.launchUnsafe();
+console.log(launch.user?.firstName);
+```
+
+IDs remain decimal strings, including 64-bit IDs. `photoUrl` is omitted unless it
+uses HTTPS on a subdomain of `lo.ink`. `languageCode` may be empty or `en` even when
+LO's interface is Russian: send the user's chosen notification language to your
+server separately.
+
+```ts
+// Node server only. This entrypoint is never imported by the browser entrypoint.
+import { verifyInitData, InitDataError } from "@lo-ink/miniapp-sdk/server";
+const verified = verifyInitData(raw, { appKey, appId, maxAgeSec: 3600 });
+const chatId = verified.user?.id;
+```
+
+**Verified `user.id` is the bot's `chat_id`.** Verification uses `node:crypto`, the
+LO Connect app key as supplied (without base64 decoding), constant-time comparison,
+an expected app ID, expiry and a five-minute future allowance. `InitDataError.code`
+is `invalid-data`, `invalid-signature`, `wrong-app-id`, `expired`, `future-auth-date`
+or `duplicate-parameter`. Keep secrets on the server. The optional `nowSec` clock
+exists for deterministic tests. [Go module](go/README.md) shares all test vectors.
+
+## Safe area CSS
+
+```ts
+import { bindSafeAreaCss } from "@lo-ink/miniapp-sdk";
+const unbind = bindSafeAreaCss(client); // optional { prefix: "--game-safe" }
+// On unmount, before disposing the client:
+unbind();
+```
+
+Use `padding-top: var(--lo-safe-top, env(safe-area-inset-top, 0px))`, and likewise
+for right, bottom and left. The helper sums `safeArea` and `contentSafeArea`, handles
+all three inset/viewport events and restores prior properties on unbind. No host
+data means no CSS writes, preserving `env()` fallbacks; SSR is supported.
+
+## Consent and missing bots
+
+Native LO hosts implementing `NO_BOT` reject `requestWriteAccess` with `NoBot`
+(`code: "no-bot"`). Keep a response locally until your server acknowledges it,
+and retry delivery instead of prompting again. Older LO hosts return `false` for
+both a missing bot and a user's denial: the SDK preserves that boolean and cannot
+distinguish the cases. Confirm the bot link in LO Connect before asking. This SDK
+release adds decoding support; it does not establish that the host change shipped.

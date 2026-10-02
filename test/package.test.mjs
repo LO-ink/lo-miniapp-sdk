@@ -78,6 +78,8 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
         "-e",
         `
       import { createMiniAppClient } from '@lo-ink/miniapp-sdk';
+      import { verifyInitData, InitDataError } from '@lo-ink/miniapp-sdk/server';
+      if (typeof verifyInitData !== 'function' || typeof InitDataError !== 'function') throw new Error('ESM server exports failed');
       import { MINI_APP_PROTOCOL_VERSION } from '@lo-ink/miniapp-sdk/protocol';
       if (typeof createMiniAppClient !== 'function' || MINI_APP_PROTOCOL_VERSION !== 1) throw new Error('ESM public exports failed');
     `,
@@ -90,6 +92,8 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
         "-e",
         `
       const { createMiniAppClient } = require('@lo-ink/miniapp-sdk');
+      const { verifyInitData, InitDataError } = require('@lo-ink/miniapp-sdk/server');
+      if (typeof verifyInitData !== 'function' || typeof InitDataError !== 'function') throw new Error('CJS server exports failed');
       const { MINI_APP_PROTOCOL_VERSION } = require('@lo-ink/miniapp-sdk/protocol');
       if (typeof createMiniAppClient !== 'function' || MINI_APP_PROTOCOL_VERSION !== 1) throw new Error('CommonJS public exports failed');
     `,

@@ -1,4 +1,5 @@
 export type MiniAppErrorCode =
+  | "no-bot"
   | "unsupported"
   | "timeout"
   | "aborted"
@@ -25,4 +26,11 @@ export function normalizeMiniAppError(error: unknown): MiniAppError {
     });
   }
   return new MiniAppError("failed", "Host request failed", { cause: error });
+}
+
+export class NoBot extends MiniAppError {
+  constructor() {
+    super("no-bot", "No bot is linked to this mini app");
+    this.name = "NoBot";
+  }
 }

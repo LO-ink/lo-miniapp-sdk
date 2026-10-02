@@ -38,9 +38,29 @@ test("SDK has no runtime dependency on hosts, compatibility, or server clients",
         /telegram|tgweb|web_app_|\.WebApp\b|t\.me\//i,
         name,
       );
+      if (/^server\.(?:js|d\.ts)$/.test(name)) {
+        const dependencies = [
+          ...body.matchAll(
+            /(?:from\s*|require\(\s*|import\(\s*)["']([^"']+)["']/g,
+          ),
+        ]
+          .map((match) => match[1])
+          .filter((name) => !name.startsWith("."));
+        assert.deepEqual(
+          dependencies,
+          name.endsWith(".d.ts") ? [] : ["node:crypto"],
+          name,
+        );
+        continue;
+      }
       assert.doesNotMatch(
         body,
         /(?:from\s*|require\(\s*|import\(\s*)["'][^./]/,
+        name,
+      );
+      assert.doesNotMatch(
+        body,
+        /(?:from\s*|require\(\s*|import\(\s*)["']\.\/server(?:\.js)?["']/,
         name,
       );
     }
