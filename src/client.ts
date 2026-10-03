@@ -1,3 +1,4 @@
+import { parseLaunchDataUnsafe, type LaunchData } from "./launch.js";
 import type { MiniAppAdapter } from "./adapter.js";
 import { MiniAppError, normalizeMiniAppError } from "./errors.js";
 import { readRequestOptions } from "./request-options.js";
@@ -87,6 +88,8 @@ const defaultTimeout: Partial<Record<MiniAppOperation, number>> = {
 export interface MiniAppClient {
   readonly adapter: MiniAppAdapter;
   readonly disposed: boolean;
+  /** Display-only launch data. Verify the raw string on your server. */
+  launchUnsafe(): LaunchData;
   supports(capability: Capability): boolean;
   on<K extends MiniAppEvent>(
     event: K,
@@ -118,6 +121,7 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
 
   const client: MiniAppClient = {
     adapter,
+    launchUnsafe: () => parseLaunchDataUnsafe(adapter.launchData),
     get disposed() {
       return disposed;
     },

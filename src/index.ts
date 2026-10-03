@@ -7,3 +7,7 @@ export * from "./features.js";
 export * from "./protocol.js";
 export * from "./session.js";
 export * from "./storage.js";
+
+export { parseLaunchDataUnsafe } from "./launch.js";
+export type { LaunchData, LaunchUser } from "./launch.js";
+export * from "./safe-area.js";
