@@ -180,7 +180,7 @@ func parseUser(raw string) (*User, error) {
 	get := func(key string) string { var s string; _ = json.Unmarshal(fields[key], &s); return s }
 	photo := get("photo_url")
 	u, err := url.Parse(photo)
-	if err != nil || u.Scheme != "https" || !strings.HasSuffix(strings.ToLower(u.Hostname()), ".lo.ink") || u.User != nil || u.Port() != "" || strings.ContainsAny(photo, "\x00\r\n\t") {
+	if err != nil || strings.TrimSpace(photo) != photo || !strings.EqualFold(u.Scheme, "https") || !strings.HasSuffix(strings.ToLower(u.Hostname()), ".lo.ink") || u.User != nil || (u.Port() != "" && u.Port() != "443") || strings.ContainsAny(photo, "\x00\r\n\t") {
 		photo = ""
 	}
 	return &User{ID: id, FirstName: get("first_name"), LastName: get("last_name"), Username: get("username"), PhotoURL: photo, LanguageCode: get("language_code")}, nil

@@ -22,7 +22,7 @@ if (client.supports("ready")) await client.call("ready", undefined);
 ```
 
 An adapter supplies capabilities, normalized events, a snapshot, opaque launch
-data and typed operations. `@lo-ink/adapter-lo` 0.22 uses only the native LO port.
+data and typed operations. `@lo-ink/adapter-lo` 0.23 uses only the native LO port.
 Older host support is an explicit, separately installed migration integration.
 Keep that choice in the application's composition root.
 
@@ -128,7 +128,7 @@ npm pack --dry-run
 
 CI exercises Node 20, 22 and 24. Architecture checks cover nested source,
 built JavaScript and declarations, and reject host or compatibility dependencies.
-See [CHANGELOG.md](CHANGELOG.md) for the prepared release set.
+See [CHANGELOG.md](CHANGELOG.md) for release changes.
 
 ## Registered launch data
 
