@@ -440,6 +440,57 @@ test("appearance uses snapshots and available events when host events are option
     client.dispose();
   }
 });
+test("appearance sums cutout and content insets and stays inert after one disposal", () => {
+  const properties = new Map();
+  let onPreference,
+    cleanups = 0;
+  const client = createMiniAppClient(
+    adapter({
+      snapshot: () => ({
+        safeArea: { top: 20, bottom: 10 },
+        contentSafeArea: { top: 44, bottom: 5 },
+      }),
+    }),
+  );
+  const release = bindAppearance(client, {
+    root: {
+      dataset: {},
+      style: { setProperty: (k, v) => properties.set(k, v) },
+    },
+    prefersDark: () => false,
+    background: () => "",
+    onPreferenceChange: (fn) => {
+      onPreference = fn;
+      return () => cleanups++;
+    },
+  });
+  assert.equal(properties.get("--host-top"), "64px");
+  assert.equal(properties.get("--host-bottom"), "15px");
+  release();
+  release();
+  properties.clear();
+  onPreference();
+  assert.equal(cleanups, 1);
+  assert.equal(properties.size, 0);
+  client.dispose();
+});
+test("appearance without host insets preserves existing CSS fallback values", () => {
+  const properties = new Map([["--host-top", "env(safe-area-inset-top)"]]);
+  const client = createMiniAppClient(adapter({ snapshot: () => ({}) }));
+  const release = bindAppearance(client, {
+    root: {
+      dataset: {},
+      style: { setProperty: (k, v) => properties.set(k, v) },
+    },
+    prefersDark: () => false,
+    background: () => "",
+    onPreferenceChange: () => () => {},
+  });
+  assert.equal(properties.get("--host-top"), "env(safe-area-inset-top)");
+  assert.equal(properties.has("--host-bottom"), false);
+  release();
+  client.dispose();
+});
 
 test("rechecks an external signal after installing its listener", async () => {
   let reads = 0;

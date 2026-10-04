@@ -17,7 +17,9 @@ export function bindAppearance(
   options: { backgroundVariable?: string } = {},
 ): () => void {
   if (!client) return () => {};
+  let active = true;
   const update = () => {
+    if (!active || client.disposed) return;
     const snapshot = client.adapter.snapshot();
     const preference = environment.root.dataset.preference;
     const dark =
@@ -26,14 +28,25 @@ export function bindAppearance(
         (snapshot.colorScheme === "dark" ||
           (!snapshot.colorScheme && environment.prefersDark())));
     environment.root.dataset.theme = dark ? "dark" : "light";
-    environment.root.style.setProperty(
-      "--host-top",
-      `${Math.max(snapshot.safeArea?.top ?? 0, snapshot.contentSafeArea?.top ?? 0)}px`,
-    );
-    environment.root.style.setProperty(
-      "--host-bottom",
-      `${Math.max(snapshot.safeArea?.bottom ?? 0, snapshot.contentSafeArea?.bottom ?? 0)}px`,
-    );
+    if (
+      snapshot.safeArea !== undefined ||
+      snapshot.contentSafeArea !== undefined
+    )
+      for (const edge of ["top", "bottom"] as const) {
+        const safe = snapshot.safeArea?.[edge] ?? 0,
+          content = snapshot.contentSafeArea?.[edge] ?? 0;
+        if (
+          Number.isFinite(safe) &&
+          Number.isFinite(content) &&
+          safe >= 0 &&
+          content >= 0 &&
+          Number.isFinite(safe + content)
+        )
+          environment.root.style.setProperty(
+            `--host-${edge}`,
+            `${safe + content}px`,
+          );
+      }
     const background = environment
       .background(options.backgroundVariable ?? "--page-background")
       .trim();
@@ -73,6 +86,7 @@ export function bindAppearance(
       }
     }
   } catch (error) {
+    active = false;
     for (const release of releases) {
       try {
         release();
@@ -83,6 +97,8 @@ export function bindAppearance(
     throw error;
   }
   return () => {
+    if (!active) return;
+    active = false;
     for (const release of releases) {
       try {
         release();

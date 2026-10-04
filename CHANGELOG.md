@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.1
+
+- Sum system and application safe-area insets consistently in both CSS helpers.
+- Preserve CSS fallbacks when the application supplies no inset values.
+- Stop late appearance callbacks and release every listener even if cleanup fails.
+- Align Go and Node avatar validation for whitespace, HTTPS casing and port 443.
+
 ## 0.20.0
 
 - Added isolated Node /server initData verifier and public stdlib Go module with shared adversarial vectors.

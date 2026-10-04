@@ -26,7 +26,8 @@ export function bindSafeAreaCss(
         !Number.isFinite(safe) ||
         safe < 0 ||
         !Number.isFinite(content) ||
-        content < 0
+        content < 0 ||
+        !Number.isFinite(safe + content)
       )
         continue;
       const name = `${prefix}-${edge}`;
@@ -72,8 +73,20 @@ export function bindSafeAreaCss(
     });
     subscribe("viewportChanged", (value) => snapshot(value as HostSnapshot));
   } catch (error) {
-    for (const release of releases) release();
+    active = false;
+    for (const release of releases) {
+      try {
+        release();
+      } catch {
+        /* Continue releasing the other subscriptions. */
+      }
+    }
     for (const [name, old] of previous) {
+      if (
+        style.getPropertyValue(name) !== written.get(name) ||
+        style.getPropertyPriority(name) !== ""
+      )
+        continue;
       if (old.value) style.setProperty(name, old.value, old.priority);
       else style.removeProperty(name);
     }
@@ -82,9 +95,19 @@ export function bindSafeAreaCss(
   return () => {
     if (!active) return;
     active = false;
-    for (const release of releases) release();
+    for (const release of releases) {
+      try {
+        release();
+      } catch {
+        /* Cleanup must still restore owned CSS properties. */
+      }
+    }
     for (const [name, old] of previous) {
-      if (style.getPropertyValue(name) !== written.get(name)) continue;
+      if (
+        style.getPropertyValue(name) !== written.get(name) ||
+        style.getPropertyPriority(name) !== ""
+      )
+        continue;
       if (old.value) style.setProperty(name, old.value, old.priority);
       else style.removeProperty(name);
     }
