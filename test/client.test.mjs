@@ -456,12 +456,12 @@ test("appearance uses snapshots and available events when host events are option
         return () => preferenceReleased++;
       },
     });
-    assert.equal(root.dataset.theme, "dark");
+    assert.equal(root.dataset.loTheme, "dark");
     assert.equal(properties.get("--host-top"), "12px");
     snapshot = { colorScheme: "light", safeArea: { top: 20 } };
     if (available.length) listeners.get("themeChanged")();
     else preferenceChanged();
-    assert.equal(root.dataset.theme, "light");
+    assert.equal(root.dataset.loTheme, "light");
     assert.equal(properties.get("--host-top"), "20px");
     release();
     assert.equal(listeners.size, 0);
@@ -611,4 +611,43 @@ test("signal registration races release listeners without starting host work", a
     }
   }
   assert.equal(starts, 0);
+});
+
+test("appearance selects the UI theme and canvas for host and explicit preferences", () => {
+  for (const [hostScheme, preference, systemDark, expected] of [
+    ["dark", undefined, false, "dark"],
+    ["light", undefined, true, "light"],
+    [undefined, undefined, true, "dark"],
+    ["dark", "light", true, "light"],
+    ["light", "dark", false, "dark"],
+  ]) {
+    const colors = [];
+    const root = { dataset: { preference }, style: { setProperty() {} } };
+    const client = createMiniAppClient(
+      adapter({
+        capabilities: new Set(["headerColor", "backgroundColor"]),
+        snapshot: () => ({ colorScheme: hostScheme }),
+        execute(operation, input) {
+          colors.push([operation, input.color]);
+          return Promise.resolve();
+        },
+      }),
+    );
+    const release = bindAppearance(client, {
+      root,
+      prefersDark: () => systemDark,
+      background(variable) {
+        assert.equal(variable, "--lo-color-canvas");
+        return root.dataset.loTheme === "dark" ? "#0B0E17" : "#F7FBFF";
+      },
+      onPreferenceChange: () => () => {},
+    });
+    assert.equal(root.dataset.loTheme, expected);
+    assert.deepEqual(colors, [
+      ["setHeaderColor", expected === "dark" ? "#0B0E17" : "#F7FBFF"],
+      ["setBackgroundColor", expected === "dark" ? "#0B0E17" : "#F7FBFF"],
+    ]);
+    release();
+    client.dispose();
+  }
 });

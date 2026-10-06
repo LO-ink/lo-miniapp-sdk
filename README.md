@@ -2,27 +2,27 @@
 
 The typed application API, protocol and lifecycle for LO Mini Apps. The SDK has
 zero runtime dependencies, installs no globals and is safe to import during
-server rendering. Host discovery and transport are supplied explicitly.
+server rendering. Native LO discovery and transport are included. Other hosts use explicit adapters.
 
 ## Start with LO
 
 ```sh
-npm install @lo-ink/miniapp-sdk @lo-ink/adapter-lo
+npm install @lo-ink/miniapp-sdk
 ```
 
 ```ts
-import { createMiniAppClient } from "@lo-ink/miniapp-sdk";
-import { createAdapter } from "@lo-ink/adapter-lo";
+import { createLoClient } from "@lo-ink/miniapp-sdk";
 
-const adapter = createAdapter();
-if (!adapter) throw new Error("Open this application inside LO");
-const client = createMiniAppClient(adapter);
+const client = createLoClient();
+if (!client) throw new Error("Open this application inside LO");
 
 if (client.supports("ready")) await client.call("ready", undefined);
 ```
 
 An adapter supplies capabilities, normalized events, a snapshot, opaque launch
-data and typed operations. `@lo-ink/adapter-lo` 0.23 uses only the native LO port.
+data and typed operations. `createLoClient` discovers only `LO.MiniAppNative`.
+It never loads scripts or retries requests through another host.
+`createMiniAppClient(adapter)` remains available for explicit integrations.
 Older host support is an explicit, separately installed migration integration.
 Keep that choice in the application's composition root.
 
@@ -46,6 +46,29 @@ are idempotent; released listeners do not receive retained callbacks.
 `bindAppearance` starts from the host snapshot and system preference, then binds
 only available appearance events. Missing optional events do not stop startup;
 other subscription failures still propagate after acquired listeners are released.
+It writes `data-lo-theme`, the same theme selector used by `@lo-ink/ui`, and reads
+`--lo-color-canvas` for host chrome. Supply `backgroundVariable` for a custom
+palette. Explicit `data-preference="light"` or `"dark"` overrides host/system
+appearance; scoped UI galleries may set their own `data-lo-theme`.
+
+## Native transport ownership
+
+The SDK owns the native port decoder, request bounds, cancellation and event
+state. `createLoClient` and `createNativeAdapter` share one connection and a
+32-request budget per port within one SDK module. Importing the SDK does not
+inspect globals or open a connection. Request IDs include a cryptographically
+random module namespace, preventing independently loaded SDK copies (including
+ESM and CommonJS) from settling each other's requests. Native requests require
+Web Crypto. Independent historical copies retain their own concurrency budgets;
+applications should resolve one SDK version.
+
+Native requests have a 60-second host cap. Caller timeouts may shorten this cap,
+but cannot extend it. Launch data remains untrusted until verified by a server.
+
+Version 0.22 moves native transport into this package. `@lo-ink/adapter-lo` 0.24 is
+an optional re-export for existing imports. When upgrading `bindAppearance`,
+replace application selectors for `data-theme` with `data-lo-theme`; the default
+background variable is now `--lo-color-canvas`.
 
 ## Permissions and requests
 

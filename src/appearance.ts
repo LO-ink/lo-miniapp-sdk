@@ -38,7 +38,7 @@ export function bindAppearance(
       (preference !== "light" &&
         (snapshot.colorScheme === "dark" ||
           (!snapshot.colorScheme && environment.prefersDark())));
-    environment.root.dataset.theme = dark ? "dark" : "light";
+    environment.root.dataset.loTheme = dark ? "dark" : "light";
     if (
       snapshot.safeArea !== undefined ||
       snapshot.contentSafeArea !== undefined
@@ -59,7 +59,7 @@ export function bindAppearance(
           );
       }
     const background = environment
-      .background(options.backgroundVariable ?? "--page-background")
+      .background(options.backgroundVariable ?? "--lo-color-canvas")
       .trim();
     if (/^#[0-9a-f]{6}$/i.test(background)) {
       if (client.supports("headerColor"))
