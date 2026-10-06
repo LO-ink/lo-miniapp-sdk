@@ -351,6 +351,14 @@ function normalizeSnapshot(value: unknown): HostSnapshot | null {
   const source = record(value);
   if (!source) return null;
   const colorScheme = source.colorScheme;
+  const locale = source.locale;
+  if (
+    locale !== undefined &&
+    (typeof locale !== "string" ||
+      locale.length > 35 ||
+      !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(locale))
+  )
+    return null;
   if (
     colorScheme !== undefined &&
     colorScheme !== "light" &&
@@ -377,6 +385,7 @@ function normalizeSnapshot(value: unknown): HostSnapshot | null {
     return null;
   }
   return {
+    ...(locale === undefined ? {} : { locale }),
     ...(colorScheme === undefined ? {} : { colorScheme }),
     ...(theme === undefined ? {} : { theme }),
     ...(viewportHeight === undefined ? {} : { viewportHeight }),
