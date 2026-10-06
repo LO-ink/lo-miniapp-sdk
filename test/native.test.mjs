@@ -908,3 +908,45 @@ test("independently loaded ESM and CommonJS copies cannot settle each other's re
   first.dispose();
   second.dispose();
 });
+
+test("native locale survives initial snapshots and events without altering signed launch identity", () => {
+  const host = nativePort({
+    events: ["themeChanged"],
+    snapshot: () => ({ colorScheme: "light", locale: "pt-BR" }),
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  assert.equal(client.adapter.snapshot().locale, "pt-BR");
+  assert.equal(client.adapter.launchData, "signed-launch");
+  const off = client.on("themeChanged", () => {});
+  host.emit(
+    baseEnvelope(host.port.generation, {
+      kind: "event",
+      event: "themeChanged",
+      payload: { colorScheme: "dark", locale: "zh-Hant" },
+    }),
+  );
+  assert.equal(client.adapter.snapshot().locale, "zh-Hant");
+  off();
+  client.dispose();
+  const old = createLoClient({ LO: { MiniAppNative: nativePort().port } });
+  assert.equal(old.adapter.snapshot().locale, undefined);
+  old.dispose();
+  for (const locale of [
+    "",
+    "ru_RU",
+    " en ",
+    "en\n",
+    "en-" + "x".repeat(40),
+    1,
+    {},
+  ]) {
+    assert.equal(
+      createLoClient({
+        LO: {
+          MiniAppNative: nativePort({ snapshot: () => ({ locale }) }).port,
+        },
+      }),
+      null,
+    );
+  }
+});

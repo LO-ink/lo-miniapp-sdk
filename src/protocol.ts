@@ -72,6 +72,8 @@ export type ThemeColors = {
   bottomBarBackground?: string;
 };
 export type HostSnapshot = {
+  /** Selected LO interface language; independent of signed user language. */
+  locale?: string;
   colorScheme?: ColorScheme;
   theme?: Readonly<ThemeColors>;
   viewportHeight?: number;

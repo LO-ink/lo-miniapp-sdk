@@ -229,3 +229,7 @@ Repository policy checks require Python 3 for Python comment tokenization. YAML
 comments are parsed as YAML; embedded scripts and localized scalar values retain
 their own language. LO credentials are checked by the root Gitleaks configuration
 and a synthetic scanner regression before each repository scan.
+
+### LO interface language
+
+`client.adapter.snapshot().locale` is the selected interface language supplied by supporting native LO hosts, as a bounded language tag such as `en` or `pt-BR`. This optional launch/environment value is independent of `client.launchUnsafe().user?.languageCode`, which comes from signed launch data. Existing hosts may omit `locale`; do not substitute browser language and label it as LO language.
