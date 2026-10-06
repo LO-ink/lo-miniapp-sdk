@@ -174,6 +174,9 @@ function ownershipFixture(t, installDocument = true) {
     getPropertyValue: (name) => values.get(name) ?? "",
     getPropertyPriority: (name) => priorities.get(name) ?? "",
     setProperty(name, value, priority = "") {
+      // WebKit refuses a normal custom-property write over an important one.
+      if (priorities.get(name) === "important" && priority !== "important")
+        return;
       values.set(name, value);
       priorities.set(name, priority);
     },
@@ -391,4 +394,118 @@ test("snapshot failure and partial CSS-write failure leave the earlier binding i
   assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "13px");
   releaseOld();
   assert.equal(fixture.values.size, 0);
+});
+
+test("WebKit priority fixture reproduces direct CSSOM controls", (t) => {
+  const { style } = ownershipFixture(t);
+  style.setProperty("--qa", "17px", "important");
+  style.setProperty("--qa", "0px", "");
+  assert.equal(style.getPropertyValue("--qa"), "17px");
+  style.setProperty("--qa", "5px", "important");
+  assert.equal(style.getPropertyValue("--qa"), "5px");
+  style.removeProperty("--qa");
+  style.setProperty("--qa", "0px", "");
+  assert.equal(style.getPropertyValue("--qa"), "0px");
+});
+
+test("deferred first insets clear important priority and restore it once", (t) => {
+  const fixture = ownershipFixture(t),
+    state = fixture.client();
+  fixture.style.setProperty("--lo-safe-top", "17px", "important");
+  const release = bindSafeAreaCss(state.client);
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "17px");
+  state.emit("safeAreaChanged", inset(0));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "0px");
+  assert.equal(fixture.style.getPropertyPriority("--lo-safe-top"), "");
+  release();
+  release();
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "17px");
+  assert.equal(fixture.style.getPropertyPriority("--lo-safe-top"), "important");
+});
+
+for (const afterRemoval of [false, true]) {
+  test(`important transition rollback on removal failure; after removal=${afterRemoval}`, (t) => {
+    const fixture = ownershipFixture(t),
+      state = fixture.client(0);
+    fixture.style.setProperty("--lo-safe-top", "17px", "important");
+    const remove = fixture.style.removeProperty;
+    fixture.style.removeProperty = (name) => {
+      if (afterRemoval) remove(name);
+      throw new Error("remove failed");
+    };
+    assert.throws(() => bindSafeAreaCss(state.client), /remove failed/);
+    assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "17px");
+    assert.equal(
+      fixture.style.getPropertyPriority("--lo-safe-top"),
+      "important",
+    );
+  });
+}
+
+for (const external of [false, true]) {
+  test(`important transition replacement failure preserves previous or external declaration; external=${external}`, (t) => {
+    const fixture = ownershipFixture(t),
+      state = fixture.client(0);
+    fixture.style.setProperty("--lo-safe-top", "17px", "important");
+    const set = fixture.style.setProperty;
+    fixture.style.setProperty = (name, value, priority) => {
+      if (name === "--lo-safe-top" && !priority) {
+        if (external) set(name, "99px", "important");
+        throw new Error("replacement failed");
+      }
+      set(name, value, priority);
+    };
+    assert.throws(() => bindSafeAreaCss(state.client), /replacement failed/);
+    assert.equal(
+      fixture.style.getPropertyValue("--lo-safe-top"),
+      external ? "99px" : "17px",
+    );
+    assert.equal(
+      fixture.style.getPropertyPriority("--lo-safe-top"),
+      "important",
+    );
+  });
+}
+
+test("partial setup failure restores cleared important edges and releases callbacks", (t) => {
+  const fixture = ownershipFixture(t),
+    state = fixture.client(0);
+  for (const edge of ["top", "right"])
+    fixture.style.setProperty(`--lo-safe-${edge}`, "17px", "important");
+  let retained,
+    released = 0;
+  state.client.on = (event, listener) => {
+    if (event === "contentSafeAreaChanged") throw new Error("setup failed");
+    retained = listener;
+    return () => {
+      released++;
+    };
+  };
+  assert.throws(() => bindSafeAreaCss(state.client), /setup failed/);
+  retained(inset(90));
+  assert.equal(released, 1);
+  for (const edge of ["top", "right"]) {
+    assert.equal(fixture.style.getPropertyValue(`--lo-safe-${edge}`), "17px");
+    assert.equal(
+      fixture.style.getPropertyPriority(`--lo-safe-${edge}`),
+      "important",
+    );
+  }
+  assert.equal(fixture.values.size, 2);
+});
+
+test("external writer during priority removal is not overwritten", (t) => {
+  const fixture = ownershipFixture(t),
+    state = fixture.client(0);
+  fixture.style.setProperty("--lo-safe-top", "17px", "important");
+  const remove = fixture.style.removeProperty;
+  fixture.style.removeProperty = (name) => {
+    remove(name);
+    if (name === "--lo-safe-top")
+      fixture.style.setProperty(name, "99px", "important");
+  };
+  const release = bindSafeAreaCss(state.client);
+  release();
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "99px");
+  assert.equal(fixture.style.getPropertyPriority("--lo-safe-top"), "important");
 });

@@ -37,12 +37,32 @@ function cssOwner(style: CSSStyleDeclaration) {
   };
   const apply = (name: string, state: PropertyOwners, value: CssValue) => {
     const previous = state.written;
-    state.written = value;
+    const empty = { value: "", priority: "" };
+    let clearing = false;
     try {
+      // WebKit retains important custom properties on a normal setProperty.
+      // Clear only this owned priority transition before applying host insets.
+      if (previous.priority === "important" && value.value && !value.priority) {
+        clearing = true;
+        state.written = empty;
+        style.removeProperty(name);
+        if (!matches(name, empty)) return;
+      }
+      state.written = value;
       if (value.value) style.setProperty(name, value.value, value.priority);
       else style.removeProperty(name);
     } catch (error) {
       if (matches(name, previous)) state.written = previous;
+      else if (clearing && matches(name, empty)) {
+        // Roll back only our empty slot, never a value written by another caller.
+        state.written = empty;
+        try {
+          style.setProperty(name, previous.value, previous.priority);
+          if (matches(name, previous)) state.written = previous;
+        } catch {
+          /* Setup cleanup can still restore an unchanged empty slot. */
+        }
+      }
       throw error;
     }
   };

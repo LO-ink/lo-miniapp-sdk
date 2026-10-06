@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.3
+
+- Apply safe-area CSS over existing important custom properties in WebKit while preserving the original value and priority on cleanup.
+- Roll back a cleared declaration if the replacement fails, without overwriting external edits.
+
 ## 0.20.2
 
 - Give overlapping safe-area CSS bindings explicit ownership. Unbinding an older caller preserves the newest live binding; the last release restores the original CSS value and priority.
