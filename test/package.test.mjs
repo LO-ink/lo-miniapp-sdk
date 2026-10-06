@@ -70,16 +70,33 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
     assert.equal(typeof esm.createMiniAppClient, "function");
     assert.equal(typeof cjs.createMiniAppClient, "function");
 
-    for (const api of [esm, cjs]) {
+    for (const [api, olderFirst] of [
+      [esm, true],
+      [esm, false],
+      [cjs, true],
+      [cjs, false],
+    ]) {
       const previousDocument = globalThis.document;
-      const values = new Map();
+      const values = new Map([["--lo-safe-top", "17px"]]);
+      const priorities = new Map([["--lo-safe-top", "important"]]);
       globalThis.document = {
         documentElement: {
           style: {
             getPropertyValue: (name) => values.get(name) ?? "",
-            getPropertyPriority: () => "",
-            setProperty: (name, value) => values.set(name, value),
-            removeProperty: (name) => values.delete(name),
+            getPropertyPriority: (name) => priorities.get(name) ?? "",
+            setProperty: (name, value, priority = "") => {
+              if (
+                priorities.get(name) === "important" &&
+                priority !== "important"
+              )
+                return;
+              values.set(name, value);
+              priorities.set(name, priority);
+            },
+            removeProperty: (name) => {
+              values.delete(name);
+              priorities.delete(name);
+            },
           },
         },
       };
@@ -96,10 +113,14 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
       try {
         const first = api.bindSafeAreaCss(client);
         const second = api.bindSafeAreaCss(client);
-        first();
         assert.equal(values.get("--lo-safe-top"), "10px");
-        second();
-        assert.equal(values.size, 0);
+        assert.equal(priorities.get("--lo-safe-top"), "");
+        (olderFirst ? first : second)();
+        assert.equal(values.get("--lo-safe-top"), "10px");
+        (olderFirst ? second : first)();
+        assert.equal(values.get("--lo-safe-top"), "17px");
+        assert.equal(priorities.get("--lo-safe-top"), "important");
+        assert.equal(values.size, 1);
       } finally {
         client.dispose();
         globalThis.document = previousDocument;
