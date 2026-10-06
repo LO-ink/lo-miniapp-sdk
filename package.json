@@ -67,7 +67,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lo-ink/lo-miniapp-sdk.git"
+    "url": "https://github.com/LO-ink/lo-miniapp-sdk.git"
   },
   "publishConfig": {
     "access": "public"
