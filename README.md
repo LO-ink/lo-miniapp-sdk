@@ -201,3 +201,8 @@ statement coverage, and govulncheck using the pinned Go toolchain.
 
 Pass `onError` to `bindAppearance` to handle rejected host color updates. Without
 a handler, errors are raised asynchronously. A rejection never switches transport.
+
+Repository policy checks require Python 3 for Python comment tokenization. YAML
+comments are parsed as YAML; embedded scripts and localized scalar values retain
+their own language. LO credentials are checked by the root Gitleaks configuration
+and a synthetic scanner regression before each repository scan.
