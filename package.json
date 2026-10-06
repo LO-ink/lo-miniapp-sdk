@@ -1,7 +1,7 @@
 {
   "name": "@lo-ink/miniapp-sdk",
-  "version": "0.21.1",
-  "description": "Typed LO Mini App API, protocol and lifecycle without host or compatibility dependencies",
+  "version": "0.22.0",
+  "description": "Typed native LO Mini App client, protocol and lifecycle with zero runtime dependencies",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
@@ -58,7 +58,7 @@
     "build": "node scripts/build.mjs",
     "check": "tsc --noEmit",
     "format:check": "prettier --check .",
-    "test": "npm run build && node --test test/authenticate.test.mjs test/facades.test.mjs test/architecture.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs test/launch.test.mjs test/server.test.mjs test/safe-area.test.mjs && node --test test/package.test.mjs",
+    "test": "npm run build && node --test test/authenticate.test.mjs test/facades.test.mjs test/architecture.test.mjs test/native.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs test/launch.test.mjs test/server.test.mjs test/safe-area.test.mjs && node --test test/package.test.mjs",
     "prepack": "npm run build",
     "lint": "eslint . --max-warnings 0",
     "architecture": "depcruise --config .dependency-cruiser.cjs src",

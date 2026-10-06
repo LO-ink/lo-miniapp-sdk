@@ -69,6 +69,10 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
     );
     assert.equal(typeof esm.createMiniAppClient, "function");
     assert.equal(typeof cjs.createMiniAppClient, "function");
+    assert.equal(typeof esm.createLoClient, "function");
+    assert.equal(typeof cjs.createLoClient, "function");
+    assert.equal(esm.createLoClient({}), null);
+    assert.equal(cjs.createLoClient({}), null);
 
     for (const [api, olderFirst] of [
       [esm, true],
