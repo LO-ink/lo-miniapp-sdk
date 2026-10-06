@@ -1,5 +1,5 @@
 name: SDK checks
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
@@ -33,3 +33,19 @@ jobs:
         working-directory: go
       - run: go vet ./...
         working-directory: go
+  publish-npm:
+    needs: [test, go]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: npm
+    concurrency:
+      group: npm-release
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: LO-ink/lo-developer-tools/actions/publish-npm@1b3c4611e54aa911dfdc22942ec98a6c1d41b13c
+        with:
+          package-paths: '["."]'
