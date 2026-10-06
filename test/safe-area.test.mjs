@@ -164,3 +164,231 @@ test("failed binding stops retained callbacks before restoring owned styles", ()
     globalThis.document = previous;
   }
 });
+
+function ownershipFixture(t, installDocument = true) {
+  const previous = globalThis.document;
+  const clients = [];
+  const values = new Map();
+  const priorities = new Map();
+  const style = {
+    getPropertyValue: (name) => values.get(name) ?? "",
+    getPropertyPriority: (name) => priorities.get(name) ?? "",
+    setProperty(name, value, priority = "") {
+      values.set(name, value);
+      priorities.set(name, priority);
+    },
+    removeProperty(name) {
+      values.delete(name);
+      priorities.delete(name);
+    },
+  };
+  if (installDocument) globalThis.document = { documentElement: { style } };
+  t.after(() => {
+    for (const state of clients) state.client.dispose();
+    if (installDocument) globalThis.document = previous;
+  });
+  return {
+    style,
+    values,
+    client(top) {
+      const listeners = new Map();
+      const client = createMiniAppClient({
+        id: "ownership-fixture",
+        launchData: "",
+        capabilities: new Set(),
+        snapshot: () => (top === undefined ? {} : { safeArea: inset(top) }),
+        subscribe(event, fn) {
+          if (!listeners.has(event)) listeners.set(event, new Set());
+          listeners.get(event).add(fn);
+          return () => listeners.get(event).delete(fn);
+        },
+        execute: async () => undefined,
+      });
+      const state = {
+        client,
+        emit(event, value) {
+          for (const fn of [...(listeners.get(event) ?? [])]) fn(value);
+        },
+      };
+      clients.push(state);
+      return state;
+    },
+  };
+}
+
+for (const equal of [true, false]) {
+  for (const olderFirst of [true, false]) {
+    test(`overlapping CSS owners: equal=${equal}, older releases first=${olderFirst}`, (t) => {
+      const fixture = ownershipFixture(t);
+      fixture.style.setProperty(
+        "--lo-safe-top",
+        "env(safe-area-inset-top)",
+        "important",
+      );
+      const old = fixture.client(10),
+        next = fixture.client(equal ? 10 : 20);
+      const releaseOld = bindSafeAreaCss(old.client);
+      const releaseNext = bindSafeAreaCss(next.client);
+      assert.equal(
+        fixture.style.getPropertyValue("--lo-safe-top"),
+        equal ? "10px" : "20px",
+      );
+      if (olderFirst) {
+        releaseOld();
+        releaseOld();
+        assert.equal(
+          fixture.style.getPropertyValue("--lo-safe-top"),
+          equal ? "10px" : "20px",
+        );
+        releaseNext();
+      } else {
+        releaseNext();
+        releaseNext();
+        assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "10px");
+        releaseOld();
+      }
+      assert.equal(
+        fixture.style.getPropertyValue("--lo-safe-top"),
+        "env(safe-area-inset-top)",
+      );
+      assert.equal(
+        fixture.style.getPropertyPriority("--lo-safe-top"),
+        "important",
+      );
+      assert.equal(fixture.values.has("--lo-safe-bottom"), false);
+    });
+  }
+}
+
+test("two bindings of the same client remain active after the older release", (t) => {
+  const fixture = ownershipFixture(t),
+    state = fixture.client(10);
+  const first = bindSafeAreaCss(state.client),
+    second = bindSafeAreaCss(state.client);
+  first();
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "10px");
+  state.emit("safeAreaChanged", inset(35));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "35px");
+  second();
+  assert.equal(fixture.values.size, 0);
+});
+
+test("non-top inset updates wait for ownership, including a previously empty binding", (t) => {
+  const fixture = ownershipFixture(t),
+    old = fixture.client(),
+    next = fixture.client(20);
+  const releaseOld = bindSafeAreaCss(old.client),
+    releaseNext = bindSafeAreaCss(next.client);
+  old.emit("safeAreaChanged", inset(15));
+  old.emit("contentSafeAreaChanged", inset(7));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "20px");
+  releaseNext();
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "22px");
+  releaseOld();
+  assert.equal(fixture.values.size, 0);
+});
+
+test("different prefixes and style targets have independent ownership", (t) => {
+  const a = ownershipFixture(t),
+    one = a.client(10);
+  const releaseA = bindSafeAreaCss(one.client);
+  const releaseCustom = bindSafeAreaCss(one.client, { prefix: "--game" });
+  const b = ownershipFixture(t, false),
+    two = b.client(20);
+  globalThis.document = { documentElement: { style: b.style } };
+  const releaseB = bindSafeAreaCss(two.client);
+  releaseA();
+  assert.equal(a.style.getPropertyValue("--lo-safe-top"), "");
+  assert.equal(a.style.getPropertyValue("--game-top"), "10px");
+  assert.equal(b.style.getPropertyValue("--lo-safe-top"), "20px");
+  releaseCustom();
+  releaseB();
+  assert.equal(a.values.size, 0);
+  assert.equal(b.values.size, 0);
+});
+
+for (const updateAfterExternal of [false, true]) {
+  test(`external mutation preserved with overlapping owners; later update=${updateAfterExternal}`, (t) => {
+    const fixture = ownershipFixture(t),
+      old = fixture.client(10),
+      next = fixture.client(20);
+    const releaseOld = bindSafeAreaCss(old.client),
+      releaseNext = bindSafeAreaCss(next.client);
+    fixture.style.setProperty("--lo-safe-top", "99px", "important");
+    if (updateAfterExternal) {
+      next.emit("safeAreaChanged", inset(30));
+      assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "30px");
+    }
+    releaseOld();
+    releaseNext();
+    assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "99px");
+    assert.equal(
+      fixture.style.getPropertyPriority("--lo-safe-top"),
+      "important",
+    );
+  });
+}
+
+test("external equal-value priority change is not mistaken for SDK ownership", (t) => {
+  const fixture = ownershipFixture(t),
+    state = fixture.client(10);
+  const release = bindSafeAreaCss(state.client);
+  fixture.style.setProperty("--lo-safe-top", "10px", "important");
+  release();
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "10px");
+  assert.equal(fixture.style.getPropertyPriority("--lo-safe-top"), "important");
+});
+
+test("failed second subscription restores active first owner and suppresses retained callbacks", (t) => {
+  const fixture = ownershipFixture(t),
+    old = fixture.client(10),
+    next = fixture.client(20);
+  const releaseOld = bindSafeAreaCss(old.client);
+  let retained;
+  next.client.on = (event, listener) => {
+    if (event === "contentSafeAreaChanged")
+      throw new Error("second subscription failed");
+    retained = listener;
+    return () => {
+      throw new Error("cleanup failed");
+    };
+  };
+  assert.throws(
+    () => bindSafeAreaCss(next.client),
+    /second subscription failed/,
+  );
+  retained(inset(88));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "10px");
+  old.emit("safeAreaChanged", inset(12));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "12px");
+  releaseOld();
+  assert.equal(fixture.values.size, 0);
+});
+
+test("snapshot failure and partial CSS-write failure leave the earlier binding intact", (t) => {
+  const fixture = ownershipFixture(t),
+    old = fixture.client(10),
+    next = fixture.client(20);
+  const releaseOld = bindSafeAreaCss(old.client);
+  const snapshot = next.client.adapter.snapshot;
+  next.client.adapter.snapshot = () => {
+    throw new Error("snapshot failed");
+  };
+  assert.throws(() => bindSafeAreaCss(next.client), /snapshot failed/);
+  next.client.adapter.snapshot = snapshot;
+  const set = fixture.style.setProperty;
+  let failed = false;
+  fixture.style.setProperty = (name, value, priority) => {
+    if (!failed && name === "--lo-safe-right") {
+      failed = true;
+      throw new Error("style failed");
+    }
+    set(name, value, priority);
+  };
+  assert.throws(() => bindSafeAreaCss(next.client), /style failed/);
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "10px");
+  old.emit("safeAreaChanged", inset(13));
+  assert.equal(fixture.style.getPropertyValue("--lo-safe-top"), "13px");
+  releaseOld();
+  assert.equal(fixture.values.size, 0);
+});

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.2
+
+- Give overlapping safe-area CSS bindings explicit ownership. Unbinding an older caller preserves the newest live binding; the last release restores the original CSS value and priority.
+- Retain non-owner inset updates for later ownership, preserve external CSS edits, and release partial bindings when setup fails.
+
 ## 0.20.1
 
 - Sum system and application safe-area insets consistently in both CSS helpers.
