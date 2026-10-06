@@ -70,6 +70,42 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
     assert.equal(typeof esm.createMiniAppClient, "function");
     assert.equal(typeof cjs.createMiniAppClient, "function");
 
+    for (const api of [esm, cjs]) {
+      const previousDocument = globalThis.document;
+      const values = new Map();
+      globalThis.document = {
+        documentElement: {
+          style: {
+            getPropertyValue: (name) => values.get(name) ?? "",
+            getPropertyPriority: () => "",
+            setProperty: (name, value) => values.set(name, value),
+            removeProperty: (name) => values.delete(name),
+          },
+        },
+      };
+      const client = api.createMiniAppClient({
+        id: "packed-css-ownership",
+        launchData: "",
+        capabilities: new Set(),
+        snapshot: () => ({
+          safeArea: { top: 10, right: 0, bottom: 0, left: 0 },
+        }),
+        subscribe: () => () => {},
+        execute: async () => undefined,
+      });
+      try {
+        const first = api.bindSafeAreaCss(client);
+        const second = api.bindSafeAreaCss(client);
+        first();
+        assert.equal(values.get("--lo-safe-top"), "10px");
+        second();
+        assert.equal(values.size, 0);
+      } finally {
+        client.dispose();
+        globalThis.document = previousDocument;
+      }
+    }
+
     const consumer = dirname(dirname(dirname(packageDirectory)));
     run(
       process.execPath,

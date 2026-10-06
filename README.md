@@ -170,6 +170,11 @@ Use `padding-top: var(--lo-safe-top, env(safe-area-inset-top, 0px))`, and likewi
 for right, bottom and left. The helper sums `safeArea` and `contentSafeArea`, handles
 all three inset/viewport events and restores prior properties on unbind. No host
 data means no CSS writes, preserving `env()` fallbacks; SSR is supported.
+Overlapping bindings share ownership per style property: the newest live binding
+controls it, and earlier bindings keep their latest insets for when that binding
+ends. The last release restores the original value and priority. External CSS
+edits are preserved on release; a later host update may acquire the property
+again using that external value as its new baseline.
 
 ## Consent and missing bots
 
