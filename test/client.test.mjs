@@ -20,6 +20,36 @@ function adapter(overrides = {}) {
   };
 }
 
+test("appearance reports failed color updates without changing transports", async () => {
+  const failure = new MiniAppError("failed", "Color update rejected");
+  const calls = [];
+  const errors = [];
+  const client = createMiniAppClient(
+    adapter({
+      capabilities: new Set(["headerColor", "backgroundColor"]),
+      execute: (operation) => {
+        calls.push(operation);
+        return Promise.reject(failure);
+      },
+    }),
+  );
+  const release = bindAppearance(
+    client,
+    {
+      root: { dataset: {}, style: { setProperty() {} } },
+      prefersDark: () => false,
+      background: () => "#123456",
+      onPreferenceChange: () => () => {},
+    },
+    { onError: (error) => errors.push(error) },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, ["setHeaderColor", "setBackgroundColor"]);
+  assert.deepEqual(errors, [failure, failure]);
+  release();
+  client.dispose();
+});
+
 test("invalid request options reject before acquiring host resources", async () => {
   let starts = 0;
   const client = createMiniAppClient(
@@ -309,9 +339,8 @@ test("timeout and disposal abort promise-only adapter transports", async () => {
 });
 
 test("cleanup returned after synchronous disposal still runs", async () => {
-  let client;
   let cleanupCount = 0;
-  client = createMiniAppClient(
+  const client = createMiniAppClient(
     adapter({
       execute: () => {
         client.dispose();

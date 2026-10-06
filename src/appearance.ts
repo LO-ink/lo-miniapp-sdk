@@ -14,10 +14,21 @@ type AppearanceEnvironment = {
 export function bindAppearance(
   client: MiniAppClient | null,
   environment: AppearanceEnvironment,
-  options: { backgroundVariable?: string } = {},
+  options: {
+    backgroundVariable?: string;
+    onError?: (error: unknown) => void;
+  } = {},
 ): () => void {
   if (!client) return () => {};
   let active = true;
+  const reportError = (error: unknown) => {
+    if (!active || client.disposed) return;
+    if (options.onError) options.onError(error);
+    else
+      queueMicrotask(() => {
+        throw error;
+      });
+  };
   const update = () => {
     if (!active || client.disposed) return;
     const snapshot = client.adapter.snapshot();
@@ -54,11 +65,11 @@ export function bindAppearance(
       if (client.supports("headerColor"))
         void client
           .call("setHeaderColor", { color: background })
-          .catch(() => {});
+          .catch(reportError);
       if (client.supports("backgroundColor"))
         void client
           .call("setBackgroundColor", { color: background })
-          .catch(() => {});
+          .catch(reportError);
     }
   };
   update();

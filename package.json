@@ -1,6 +1,6 @@
 {
   "name": "@lo-ink/miniapp-sdk",
-  "version": "0.20.3",
+  "version": "0.21.0",
   "description": "Typed LO Mini App API, protocol and lifecycle without host or compatibility dependencies",
   "type": "module",
   "license": "MIT",
@@ -9,8 +9,7 @@
     "dist",
     "dist-cjs",
     "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
+    "LICENSE"
   ],
   "exports": {
     ".": {
@@ -59,8 +58,16 @@
     "build": "node scripts/build.mjs",
     "check": "tsc --noEmit",
     "format:check": "prettier --check .",
-    "test": "npm run build && node --test test/architecture.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs test/launch.test.mjs test/server.test.mjs test/safe-area.test.mjs && node --test test/package.test.mjs",
-    "prepack": "npm run build"
+    "test": "npm run build && node --test test/authenticate.test.mjs test/facades.test.mjs test/architecture.test.mjs test/client.test.mjs test/lifecycle.test.mjs test/formats.test.mjs test/launch.test.mjs test/server.test.mjs test/safe-area.test.mjs && node --test test/package.test.mjs",
+    "prepack": "npm run build",
+    "lint": "eslint . --max-warnings 0",
+    "architecture": "depcruise --config .dependency-cruiser.cjs src",
+    "format": "prettier --write .",
+    "security": "npm audit --audit-level=high",
+    "test:coverage": "c8 npm test",
+    "policy": "node scripts/check-policy.mjs",
+    "secrets": "node scripts/check-secrets.mjs",
+    "ci": "make ci"
   },
   "engines": {
     "node": ">=20"
@@ -73,8 +80,14 @@
     "access": "public"
   },
   "devDependencies": {
-    "prettier": "3.6.2",
+    "prettier": "3.9.6",
     "typescript": "5.9.3",
-    "@types/node": "22.18.6"
+    "@types/node": "22.18.6",
+    "eslint": "10.12.0",
+    "@eslint/js": "10.0.1",
+    "typescript-eslint": "8.71.1",
+    "globals": "16.5.0",
+    "dependency-cruiser": "17.4.3",
+    "c8": "12.0.0"
   }
 }

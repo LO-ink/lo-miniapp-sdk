@@ -50,7 +50,7 @@ function launchUser(raw: string | undefined): LaunchUser | undefined {
   // token from the original JSON, after validating the entire document above.
   const tokens =
     raw.match(
-      /"(?:\\[\s\S]|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\]:,]|true|false|null/g,
+      /"(?:\\[\s\S]|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\]:,]|true|false|null/g,
     ) ?? [];
   let depth = 0;
   let id: string | undefined;
@@ -84,6 +84,7 @@ function launchUser(raw: string | undefined): LaunchUser | undefined {
         !url.username &&
         !url.password &&
         !url.port &&
+        // eslint-disable-next-line no-control-regex -- Reject control bytes in untrusted input.
         !/[\u0000\r\n\t]/.test(user.photo_url)
       )
         photoUrl = user.photo_url;

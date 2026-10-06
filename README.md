@@ -184,3 +184,20 @@ and retry delivery instead of prompting again. Older LO hosts return `false` for
 both a missing bot and a user's denial: the SDK preserves that boolean and cannot
 distinguish the cases. Confirm the bot link in LO Connect before asking. This SDK
 release adds decoding support; it does not establish that the host change shipped.
+
+## Quality checks
+
+Run `make install` and `make ci` with Node.js 22.13 or newer. The same targets run
+in GitHub Actions. CI checks formatting, ESLint (including typed promises),
+TypeScript, dependency cycles and package boundaries, tests, published package
+contents, vulnerable dependencies and secrets. English documentation and comments
+are enforced; unfinished development notes and retired repository URLs fail CI.
+
+Coverage includes unimported production files and fails below 90% lines and
+statements, 90% functions, or 85% branches. Reports are uploaded as CI artifacts.
+
+`make go-ci` checks Go formatting, vet, staticcheck, race tests, at least 90%
+statement coverage, and govulncheck using the pinned Go toolchain.
+
+Pass `onError` to `bindAppearance` to handle rejected host color updates. Without
+a handler, errors are raised asynchronously. A rejection never switches transport.
