@@ -2,3 +2,16 @@ node_modules/
 dist/
 dist-cjs/
 *.tgz
+coverage/
+.venv/
+.ruff_cache/
+.mypy_cache/
+
+.coverage
+.coverage.*
+**/*.egg-info/
+**/build/
+
+coverage-go.out
+
+coverage-go.txt

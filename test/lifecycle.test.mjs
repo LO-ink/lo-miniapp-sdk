@@ -72,8 +72,7 @@ test("reentrant transport cancellation cannot replace an abort or timeout outcom
   for (const reason of ["aborted", "timeout"]) {
     const external = new AbortController();
     let cleanups = 0;
-    let client;
-    client = createMiniAppClient(
+    const client = createMiniAppClient(
       adapter({
         execute(_operation, _input, { signal }) {
           signal.addEventListener("abort", () => client.dispose());

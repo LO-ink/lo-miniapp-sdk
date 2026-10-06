@@ -34,6 +34,7 @@ function validateStoryUrl(
     typeof value !== "string" ||
     value.length > (media ? 8192 : 2048) ||
     !/^https?:\/\//i.test(value) ||
+    // eslint-disable-next-line no-control-regex -- Reject control bytes in untrusted input.
     /[\s\\\u0000-\u001f\u007f]/.test(value)
   ) {
     throw new TypeError("Invalid story URL");
