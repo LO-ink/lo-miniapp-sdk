@@ -374,6 +374,46 @@ test("structured results are validated and projected", async () => {
   await assert.rejects(malformed, { code: "invalid-response" });
 });
 
+test("biometry type accepts only scalar enum values and releases malformed replies", async () => {
+  const host = nativePort({
+    operations: ["getBiometryInfo"],
+    capabilities: ["biometry"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  for (const type of [
+    "finger",
+    "face",
+    "unknown",
+    ["face"],
+    [["face"]],
+    null,
+    {},
+    true,
+    1,
+    "other",
+  ]) {
+    const pending = client.call("getBiometryInfo", undefined);
+    result(host, host.messages.at(-1), {
+      ok: true,
+      value: {
+        available: true,
+        type,
+        accessRequested: true,
+        accessGranted: true,
+        tokenSaved: false,
+        deviceId: "device",
+      },
+    });
+    if (typeof type === "string" && type !== "other") {
+      assert.equal((await pending).type, type);
+    } else {
+      await assert.rejects(pending, { code: "invalid-response" });
+    }
+    assert.equal(host.listeners.size, 0);
+  }
+  client.dispose();
+});
+
 test("write-access results are strict booleans and host errors are mapped", async () => {
   const host = nativePort();
   const adapter = createNativeAdapter({ LO: { MiniAppNative: host.port } });
