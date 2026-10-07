@@ -639,7 +639,8 @@ function normalizeOperationResult(
     const source = record(value);
     return source &&
       typeof source.available === "boolean" &&
-      ["finger", "face", "unknown"].includes(String(source.type)) &&
+      typeof source.type === "string" &&
+      ["finger", "face", "unknown"].includes(source.type) &&
       typeof source.accessRequested === "boolean" &&
       typeof source.accessGranted === "boolean" &&
       typeof source.tokenSaved === "boolean" &&

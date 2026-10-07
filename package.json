@@ -1,6 +1,6 @@
 {
   "name": "@lo-ink/miniapp-sdk",
-  "version": "0.22.1",
+  "version": "0.22.2",
   "description": "Typed native LO Mini App client, protocol and lifecycle with zero runtime dependencies",
   "type": "module",
   "license": "MIT",
