@@ -65,8 +65,7 @@ applications should resolve one SDK version.
 Native requests have a 60-second host cap. Caller timeouts may shorten this cap,
 but cannot extend it. Launch data remains untrusted until verified by a server.
 
-Version 0.22 moves native transport into this package. `@lo-ink/adapter-lo` 0.24 is
-an optional re-export for existing imports. When upgrading `bindAppearance`,
+The native transport is included in this package. When upgrading `bindAppearance`,
 replace application selectors for `data-theme` with `data-lo-theme`; the default
 background variable is now `--lo-color-canvas`.
 
@@ -151,7 +150,7 @@ npm pack --dry-run
 
 CI exercises Node 20, 22 and 24. Architecture checks cover nested source,
 built JavaScript and declarations, and reject host or compatibility dependencies.
-See [CHANGELOG.md](CHANGELOG.md) for release changes.
+See [package history](https://github.com/LO-ink/lo-miniapp-sdk/commits/main/) for merged changes.
 
 ## Registered launch data
 
@@ -178,7 +177,7 @@ LO Connect app key as supplied (without base64 decoding), constant-time comparis
 an expected app ID, expiry and a five-minute future allowance. `InitDataError.code`
 is `invalid-data`, `invalid-signature`, `wrong-app-id`, `expired`, `future-auth-date`
 or `duplicate-parameter`. Keep secrets on the server. The optional `nowSec` clock
-exists for deterministic tests. [Go module](go/README.md) shares all test vectors.
+exists for deterministic tests. [Go module](https://github.com/LO-ink/lo-miniapp-sdk/blob/main/go/README.md) shares all test vectors.
 
 ## Safe area CSS
 

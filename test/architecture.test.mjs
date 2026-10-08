@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("canonical source contains no compatibility platform or wire vocabulary", () => {
@@ -63,6 +64,31 @@ test("SDK has no runtime dependency on hosts, compatibility, or server clients",
         /(?:from\s*|require\(\s*|import\(\s*)["']\.\/server(?:\.js)?["']/,
         name,
       );
+    }
+  }
+});
+
+test("tracked Markdown links resolve to tracked documents and assets", () => {
+  const root = dirname(dirname(fileURLToPath(import.meta.url)));
+  const tracked = new Set(
+    execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
+      .split("\0")
+      .filter(Boolean),
+  );
+  for (const path of tracked) {
+    if (!path.endsWith(".md")) continue;
+    const body = readFileSync(join(root, path), "utf8");
+    for (const match of body.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+      const target = match[1];
+      if (/^(?:[a-z][a-z0-9+.-]*:|#)/i.test(target)) continue;
+      const file = relative(
+        root,
+        resolve(
+          dirname(join(root, path)),
+          decodeURIComponent(target.split(/[?#]/)[0]),
+        ),
+      );
+      assert.ok(tracked.has(file), `${path}: missing tracked link ${target}`);
     }
   }
 });
