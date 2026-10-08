@@ -137,7 +137,10 @@ storage is read implicitly. Keep identities scoped to their issuing provider.
 
 ## Development and distribution
 
-Requires Node 20 or newer. Both ESM and CommonJS entrypoints include declarations;
+Requires Node.js 22.13 or newer for both the published package and repository
+tooling. Use an up-to-date supported Node.js release. Version 0.23 drops Node.js
+20 support; browser output, native host requirements and protocol behavior are
+unchanged. Both ESM and CommonJS entrypoints include declarations;
 NodeNext, Node16 and bundler consumers are tested using a packed artifact.
 
 ```sh
@@ -148,7 +151,8 @@ npm run format:check
 npm pack --dry-run
 ```
 
-CI exercises Node 20, 22 and 24. Architecture checks cover nested source,
+CI exercises the exact minimum Node.js 22.13.0 and current Node.js 22 and 24
+releases. Architecture checks cover nested source,
 built JavaScript and declarations, and reject host or compatibility dependencies.
 See [package history](https://github.com/LO-ink/lo-miniapp-sdk/commits/main/) for merged changes.
 

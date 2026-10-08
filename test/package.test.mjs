@@ -61,6 +61,11 @@ test("packed package imports and typechecks for ESM, CommonJS, and bundlers", as
       packageDirectory,
     ]);
 
+    const installedManifest = JSON.parse(
+      readFileSync(join(packageDirectory, "package.json"), "utf8"),
+    );
+    assert.equal(installedManifest.engines.node, ">=22.13");
+
     const esm = await import(
       pathToFileURL(join(packageDirectory, "dist", "index.js")).href
     );
