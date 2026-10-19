@@ -24,4 +24,3 @@ wrong app IDs, expired data and timestamps more than five minutes ahead fail.
 Run `go test -race ./...` and `go vet ./...` from this directory. Tests use the
 same synthetic JSON vectors as Node at `initdata/testdata/initdata.json`; run tests
 from a checkout of the full repository. No real credentials occur in the vectors.
-The module can be used with a local `replace` before its first tagged release.
