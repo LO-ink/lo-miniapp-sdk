@@ -4,7 +4,6 @@ import {
   createMiniAppClient,
   createLoClient,
   createNativeAdapter,
-  createNativeAdapter as createAdapter,
 } from "../dist/index.js";
 
 const baseEnvelope = (generation, fields) => ({
@@ -92,12 +91,15 @@ test("default LO discovery never inspects or composes a compatibility global", (
       },
     },
   };
-  const adapter = createAdapter(scope);
+  const adapter = createNativeAdapter(scope);
   assert.equal(adapter.id, "lo");
   assert.deepEqual([...adapter.capabilities], ["ready"]);
-  assert.equal(createAdapter({ LO: { WebApp: { initData: "legacy" } } }), null);
   assert.equal(
-    createAdapter({ Telegram: { WebApp: { initData: "foreign" } } }),
+    createNativeAdapter({ LO: { WebApp: { initData: "legacy" } } }),
+    null,
+  );
+  assert.equal(
+    createNativeAdapter({ Telegram: { WebApp: { initData: "foreign" } } }),
     null,
   );
 });
@@ -137,7 +139,7 @@ test("canonical discovery derives only implemented and jointly advertised capabi
   assert.equal(host.removals(), 1);
 });
 
-test("complete shipped port exposes every non-payment canonical capability", () => {
+test("advertised native operations expose matching capabilities without inferring extras", () => {
   const operations = [
     "ready",
     "close",
@@ -281,7 +283,7 @@ test("modern canonical-only host operates without a legacy WebApp global", async
     events: ["themeChanged"],
     canonicalSnapshot: true,
   });
-  const adapter = createAdapter({ LO: { MiniAppNative: host.port } });
+  const adapter = createNativeAdapter({ LO: { MiniAppNative: host.port } });
   const client = createMiniAppClient(adapter);
   assert.equal(adapter.id, "lo");
   assert.equal(adapter.snapshot().colorScheme, "dark");
@@ -687,12 +689,12 @@ test("invalid ports fall back safely and later invalid snapshots preserve the la
   });
 });
 
-test("shipped story and swipe controls cross only the own native port", async () => {
+test("advertised story and swipe controls cross the canonical native port", async () => {
   const host = nativePort({
     operations: ["shareToStory", "setVerticalSwipes"],
     capabilities: ["shareToStory", "verticalSwipes"],
   });
-  const adapter = createAdapter({ LO: { MiniAppNative: host.port } });
+  const adapter = createNativeAdapter({ LO: { MiniAppNative: host.port } });
   const client = createMiniAppClient(adapter);
   assert.equal(client.supports("shareToStory"), true);
   assert.equal(client.supports("verticalSwipes"), true);
@@ -721,7 +723,7 @@ test("NO_BOT is typed while older host false remains unchanged", async () => {
       user: '{"id":9007199254740993}',
     }).toString(),
   });
-  const adapter = createAdapter({ LO: { MiniAppNative: host.port } });
+  const adapter = createNativeAdapter({ LO: { MiniAppNative: host.port } });
   assert.equal(adapter.launchUnsafe().user.id, "9007199254740993");
   const client = createMiniAppClient(adapter);
   const missing = client.call("requestWriteAccess", undefined);
