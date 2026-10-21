@@ -11,6 +11,28 @@ export const requestWriteAccess = (
   });
 export const requestContact = (client: MiniAppClient, options?: CallOptions) =>
   client.call("requestContact", undefined, { timeoutMs: 60_000, ...options });
+
+/** The request is signed by your backend; only that backend may trust the proof. */
+export function requestContactsProof(
+  client: MiniAppClient,
+  input: { request: string },
+  options?: CallOptions,
+) {
+  if (
+    !input ||
+    typeof input.request !== "string" ||
+    !input.request.length ||
+    input.request.length > 16_384 ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(input.request)
+  ) {
+    return Promise.reject(new TypeError("Invalid contacts request"));
+  }
+  return client.call(
+    "requestContactsProof",
+    { request: input.request },
+    { timeoutMs: 60_000, ...options },
+  );
+}
 export function shareMessage(
   client: MiniAppClient,
   id: string,

@@ -80,6 +80,7 @@ const operationCapabilities = {
   closeQrScanner: "qrScanner",
   requestWriteAccess: "requestWriteAccess",
   requestContact: "requestContact",
+  requestContactsProof: "requestContactsProof",
   shareMessage: "shareMessage",
   shareToStory: "shareToStory",
   cloudStorageSet: "cloudStorage",
@@ -474,6 +475,8 @@ function hostError(value: unknown): MiniAppError | null {
     return null;
   }
   if (source.code === "NO_BOT") return new NoBot();
+  if (source.code === "permission_denied")
+    return new MiniAppError("denied", source.message);
   const code =
     source.code === "unsupported_operation"
       ? "unsupported"
@@ -558,6 +561,12 @@ function normalizeOperationResult(
   operation: LoNativeOperation,
   value: unknown,
 ): unknown | null {
+  if (operation === "requestContactsProof") {
+    const result = record(value);
+    return result && boundedString(result.proof, 16_384)
+      ? { proof: result.proof }
+      : null;
+  }
   if (voidOperations.has(operation))
     return value === null || value === undefined ? undefined : null;
   if (

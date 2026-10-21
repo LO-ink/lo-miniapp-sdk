@@ -24,3 +24,17 @@ wrong app IDs, expired data and timestamps more than five minutes ahead fail.
 Run `go test -race ./...` and `go vet ./...` from this directory. Tests use the
 same synthetic JSON vectors as Node at `initdata/testdata/initdata.json`; run tests
 from a checkout of the full repository. No real credentials occur in the vectors.
+
+## Contacts proofs
+
+Package `contacts` supports the public Mini App contacts-proof capability without
+an internal service connection. `CreateRequest` signs a query of at most 200 app
+participants; `Batches` splits larger participant snapshots. `VerifyProof` requires
+the exact server-owned request and authenticated app/user context. `SignProof` is
+for the trusted LO issuer after consent, filtering against platform-observed app
+launch membership (including authorized preview launches), and an authoritative
+mutual-contact lookup. A signed request does not itself prove membership: the
+app developer knows the signing key. `SignProof` enforces the token/subset
+contract; the issuer must enforce the audience restriction before calling it.
+Both sides share wire fixtures with the Node SDK. Keep app keys on servers and do
+not treat a proof as permission to send a notification.

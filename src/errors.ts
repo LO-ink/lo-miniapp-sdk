@@ -3,6 +3,7 @@ export type MiniAppErrorCode =
   | "unsupported"
   | "timeout"
   | "aborted"
+  | "denied"
   | "disposed"
   | "failed"
   | "invalid-response";
