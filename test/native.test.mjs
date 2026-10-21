@@ -992,3 +992,27 @@ test("native locale survives initial snapshots and events without altering signe
     );
   }
 });
+
+test("contacts proof uses advertised native operation and explicit denial", async () => {
+  const host = nativePort({
+    operations: ["requestContactsProof"],
+    capabilities: ["requestContactsProof"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  assert.ok(client);
+  const call = client.call("requestContactsProof", {
+    request: "signed.request",
+  });
+  const message = host.messages.at(-1);
+  result(host, message, { ok: true, value: { proof: "signed.proof" } });
+  assert.deepEqual(await call, { proof: "signed.proof" });
+  const denied = client.call("requestContactsProof", {
+    request: "signed.request",
+  });
+  result(host, host.messages.at(-1), {
+    ok: false,
+    error: { code: "permission_denied", message: "Declined" },
+  });
+  await assert.rejects(denied, { code: "denied" });
+  client.dispose();
+});

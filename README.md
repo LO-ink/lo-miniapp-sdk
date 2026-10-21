@@ -236,3 +236,77 @@ and a synthetic scanner regression before each repository scan.
 ### LO interface language
 
 `client.adapter.snapshot().locale` is the selected interface language supplied by supporting native LO hosts, as a bounded language tag such as `en` or `pt-BR`. This optional launch/environment value is independent of `client.launchUnsafe().user?.languageCode`, which comes from signed launch data. Existing hosts may omit `locale`; do not substitute browser language and label it as LO language.
+
+### Mutual contacts without a private service connection
+
+New LO hosts may advertise `requestContactsProof`. This is distinct from
+`requestContact`, which shares the current person's own contact. Older hosts
+remain unsupported; denial rejects with `MiniAppError.code === "denied"`.
+Never interpret either state as an empty contacts list.
+
+1. Your authenticated backend selects **only participants of your application**.
+   Use `contactsBatches(ids)` from `@lo-ink/miniapp-sdk/server` to deduplicate and
+   split candidates into batches of at most 200. Empty input needs no host call.
+2. Create each opaque token with `createContactsRequest({appKey, appId, userId,
+candidateIds})`. Keep the exact request in a short-lived, server-owned batch
+   snapshot. `userId` must come from verified launch data. Never send `appKey`
+   to the web page.
+3. The web page calls `requestContactsProof(client, {request})`. LO asks for
+   consent, binds the operation to the active registered-app session and returns
+   `{proof}`. The LO backend independently intersects candidates with its own
+   authenticated launch membership for that App ID before consulting contacts.
+   This includes authorized preview launches without counting them as analytics
+   visits. Only mutual-contact matches in that intersection are disclosed: no
+   full contact list, phone numbers, names or nonparticipant profiles.
+4. Your backend calls `verifyContactsProof(proof, {appKey, appId, userId,
+request})` for each expected batch. Publish a complete contacts ranking only
+   after all batches of that snapshot have been verified. An omitted batch is
+   incomplete, not an empty result. Expired requests require a new snapshot.
+   Never accept a client-supplied list of IDs or trust a decoded unsigned proof.
+
+The Go module exposes equivalent `contacts.Batches`, `contacts.CreateRequest`,
+`contacts.VerifyRequest` and `contacts.VerifyProof`. The trusted LO issuer uses
+`contacts.SignProof` after authenticated session validation, consent, platform-owned
+participant filtering and the mutual-contact lookup. `SignProof` validates the
+wire and subset, but cannot enforce membership itself. A proof
+is not a notification permission: sending messages still requires the recipient's
+write-access grant. Do not persist a social graph or reuse a proof for another
+user, app or game operation.
+
+#### Contacts wire version 1
+
+Tokens are `base64url(UTF8(JSON)).base64url(signature)`, without padding. JSON
+member ordering does not affect verification: authenticate the exact first token
+segment, never reserialize it before checking the signature. Unknown or duplicate
+members, malformed UTF-8 and noncanonical base64url are rejected. The decoded
+payload has the following exact members:
+
+- Request: `{v:1, app_id, user_id, iat, exp, nonce, candidate_ids}`.
+- Proof: `{v:1, app_id, user_id, iat, exp, nonce, request_hash, ids}`.
+
+`derivedKey = HMAC-SHA256(key=UTF8(appKey), data=UTF8(domain))`.
+`signature = HMAC-SHA256(key=derivedKey, data=ASCII(firstTokenSegment))`.
+The exact domains are `LOContactsRequest/v1` and `LOContactsProof/v1` respectively.
+`request_hash` is lowercase hexadecimal SHA-256 of the complete ASCII request token.
+`app_id` is the lowercase registered-app UUID. User and candidate IDs are canonical
+positive signed-int64 decimal **strings**. The nonce is 16 random bytes encoded as
+22 base64url characters. Candidates contain 1–200 distinct IDs; proof IDs may be
+empty but must be unique and a subset of candidates. Each token is at most 16,384
+ASCII bytes, within the host's 65,536-byte envelope limit.
+
+Times are integer Unix seconds: `exp > now`, `0 < exp - iat <= 120` and
+`iat <= now + 30`. The proof copies the app, user and nonce; it has
+`proof.exp <= request.exp` and `proof.iat >= request.iat - 30`. Both tokens are
+verified against the authenticated expected app/user and exact original request.
+The signer caps proof expiry at `min(request.exp, now + 120)`.
+`go/contacts/testdata/proof.json` contains the shared Node/Go interoperability
+fixture using a deliberately fictitious app key.
+
+HMAC matches the existing registered-app trust boundary: LO and that application's
+backend know its app key. It is not third-party public attestation, and app-key
+rotation invalidates outstanding requests and proofs. Platform-side rate limits,
+consent, app-session binding and platform-owned participant filtering remain
+mandatory even when a signature is valid. A developer knows its own app key and
+can sign arbitrary candidate IDs: HMAC alone does not prove app membership.
+Missing audience storage or a failed membership lookup must fail closed; an
+empty verified audience returns a signed empty proof without reading the graph.

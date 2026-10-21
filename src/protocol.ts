@@ -28,6 +28,7 @@ export const MINI_APP_CAPABILITIES = [
   "qrScanner",
   "requestWriteAccess",
   "requestContact",
+  "requestContactsProof",
   "shareMessage",
   "shareToStory",
   "invoice",
@@ -232,6 +233,10 @@ export type MiniAppOperationMap = {
   closeQrScanner: { input: undefined; output: void };
   requestWriteAccess: { input: undefined; output: boolean };
   requestContact: { input: undefined; output: boolean };
+  requestContactsProof: {
+    input: { request: string };
+    output: { proof: string };
+  };
   shareMessage: { input: { id: string }; output: boolean };
   shareToStory: {
     input: { mediaUrl: string; params?: StoryShareParams };

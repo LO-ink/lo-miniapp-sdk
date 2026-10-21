@@ -1,0 +1,25 @@
+{
+  "appKey": "contacts-test-only-app-key",
+  "nowSec": 1700000020,
+  "requestPayload": {
+    "v": 1,
+    "app_id": "1828c3e7-7b7d-42e5-82e3-ebd1f6d2ddff",
+    "user_id": "101",
+    "iat": 1700000000,
+    "exp": 1700000120,
+    "nonce": "AAECAwQFBgcICQoLDA0ODw",
+    "candidate_ids": ["202", "303"]
+  },
+  "request": "eyJ2IjoxLCJhcHBfaWQiOiIxODI4YzNlNy03YjdkLTQyZTUtODJlMy1lYmQxZjZkMmRkZmYiLCJ1c2VyX2lkIjoiMTAxIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDAxMjAsIm5vbmNlIjoiQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsImNhbmRpZGF0ZV9pZHMiOlsiMjAyIiwiMzAzIl19.B-FuPpAiKOP4KDya1KFMeHFE04SYkM1OvduIlq0uOkU",
+  "proofPayload": {
+    "v": 1,
+    "app_id": "1828c3e7-7b7d-42e5-82e3-ebd1f6d2ddff",
+    "user_id": "101",
+    "iat": 1700000010,
+    "exp": 1700000120,
+    "nonce": "AAECAwQFBgcICQoLDA0ODw",
+    "request_hash": "755dc6d632170423bc83801ab2cf69a987a2c5cdfdc8d8c12ae698c41433b968",
+    "ids": ["202"]
+  },
+  "proof": "eyJ2IjoxLCJhcHBfaWQiOiIxODI4YzNlNy03YjdkLTQyZTUtODJlMy1lYmQxZjZkMmRkZmYiLCJ1c2VyX2lkIjoiMTAxIiwiaWF0IjoxNzAwMDAwMDEwLCJleHAiOjE3MDAwMDAxMjAsIm5vbmNlIjoiQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsInJlcXVlc3RfaGFzaCI6Ijc1NWRjNmQ2MzIxNzA0MjNiYzgzODAxYWIyY2Y2OWE5ODdhMmM1Y2RmZGM4ZDhjMTJhZTY5OGM0MTQzM2I5NjgiLCJpZHMiOlsiMjAyIl19.IhpvuL-H0yO0vdc4Ey-DILXTJ2L3kpNzuK_x5mRa3XE"
+}
