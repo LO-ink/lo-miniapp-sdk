@@ -135,6 +135,14 @@ and client capability checks do not authenticate the user.
 Cached tokens are validated by the application backend; no global session
 storage is read implicitly. Keep identities scoped to their issuing provider.
 
+## Game integration guide
+
+See [Building games for LO Mini Apps](docs/games.md) for lifecycle and native
+exit behavior, explicit pause/resume, audio and input suspension, mobile safe
+areas, portable SDK integration and release verification. An installable
+[agent skill](skills/lo-miniapp-game/SKILL.md) covers the same integration checks.
+These are repository resources, not additional runtime APIs.
+
 ## Development and distribution
 
 Requires Node.js 22.13 or newer for both the published package and repository
