@@ -247,7 +247,7 @@ and a synthetic scanner regression before each repository scan.
 
 ### Server-to-server mutual contacts
 
-Use the public `POST https://bots.lo.ink/miniapps/v1/contacts/match` endpoint
+Use the public `POST https://api.lo.ink/miniapps/v1/contacts/match` endpoint
 from your backend after the person grants contacts access in LO. The body is
 `{appId, userId, request}`: `request` is the existing `LOContactsRequest/v1`
 HMAC token signed with this app's key, with at most 200 participant candidates.

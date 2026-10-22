@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const MatchURL = "https://bots.lo.ink/miniapps/v1/contacts/match"
+const MatchURL = "https://api.lo.ink/miniapps/v1/contacts/match"
 
 var ErrPermissionRequired = errors.New("contacts permission required")
 var ErrUnavailable = errors.New("contacts service unavailable")
