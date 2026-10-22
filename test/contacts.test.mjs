@@ -302,7 +302,8 @@ test("server Match recovers the platform quota with at most four active calls", 
     active = 0,
     peak = 0,
     calls = 0;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    assert.equal(String(url), "https://api.lo.ink/miniapps/v1/contacts/match");
     active++;
     peak = Math.max(peak, active);
     calls++;

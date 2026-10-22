@@ -650,7 +650,7 @@ export function verifyPublicationProof(
 }
 
 export const CONTACTS_MATCH_URL =
-  "https://bots.lo.ink/miniapps/v1/contacts/match";
+  "https://api.lo.ink/miniapps/v1/contacts/match";
 export class ContactsPermissionRequired extends Error {
   constructor() {
     super("contacts permission required");
