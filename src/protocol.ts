@@ -7,6 +7,7 @@ export const MINI_APP_CAPABILITIES = [
   "hideKeyboard",
   "orientation",
   "screenOrientation",
+  "publicationSharing",
   "backButton",
   "mainButton",
   "secondaryButton",
@@ -242,6 +243,19 @@ export type MiniAppOperationMap = {
   requestContactsProof: {
     input: { request: string };
     output: { proof: string };
+  };
+  composePublication: {
+    input: {
+      request: string;
+      text?: string;
+      mediaUrl?: string;
+      suggestContacts?: boolean;
+    };
+    output: { status: "opened" };
+  };
+  getPublicationProof: {
+    input: { request: string };
+    output: { status: "pending" } | { status: "verified"; proof: string };
   };
   shareMessage: { input: { id: string }; output: boolean };
   shareToStory: {

@@ -38,3 +38,15 @@ app developer knows the signing key. `SignProof` enforces the token/subset
 contract; the issuer must enforce the audience restriction before calling it.
 Both sides share wire fixtures with the Node SDK. Keep app keys on servers and do
 not treat a proof as permission to send a notification.
+
+## Publication receipts
+
+Package `publication` signs application-owned `post` / `moment` challenges and
+verifies platform receipts against the exact original request and expected app
+and user. Requests may last up to seven days for durable upload recovery; proofs
+last at most five minutes and are capped by request expiry. `Published` passed to
+`SignProof` must come from the authoritative publication owner service, including
+its publication time and canonical app link. A native editor opening is never
+proof of publishing. Keep rewards idempotent by actual publication kind/ID and
+application policy; never trust a client-supplied object ID. See the repository
+README for the exact wire, trust boundary and shared synthetic fixture.

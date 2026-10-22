@@ -1110,3 +1110,95 @@ test("target screen orientation validates input before transport and preserves c
   result(host, request, { ok: true, value: { mode: "portrait" } });
   client.dispose();
 });
+
+test("publication composer and recoverable proof require both operations and never imply a reward", async () => {
+  const input = { request: "e30." + "A".repeat(43) };
+  for (const operations of [
+    [],
+    ["composePublication"],
+    ["getPublicationProof"],
+  ]) {
+    const host = nativePort({
+      operations,
+      capabilities: ["publicationSharing"],
+    });
+    const client = createLoClient({ LO: { MiniAppNative: host.port } });
+    assert.equal(client.supports("publicationSharing"), false);
+    await assert.rejects(client.call("composePublication", input), {
+      code: "unsupported",
+    });
+    client.dispose();
+  }
+  const host = nativePort({
+    operations: ["composePublication", "getPublicationProof"],
+    capabilities: ["publicationSharing"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  assert.equal(client.supports("publicationSharing"), true);
+  const { composePublication, getPublicationProof } =
+    await import("../dist/index.js");
+  const open = composePublication(client, {
+    ...input,
+    text: "A record",
+    mediaUrl: "https://example.com/card.png",
+    suggestContacts: true,
+  });
+  result(host, host.messages.at(-1), { ok: true, value: { status: "opened" } });
+  assert.deepEqual(await open, { status: "opened" });
+  for (const value of [
+    { status: "pending" },
+    { status: "verified", proof: "signed-proof" },
+  ]) {
+    const pending = getPublicationProof(client, input);
+    result(host, host.messages.at(-1), { ok: true, value });
+    assert.deepEqual(await pending, value);
+  }
+  for (const operation of ["composePublication", "getPublicationProof"]) {
+    for (const value of [
+      null,
+      true,
+      {},
+      { status: "published" },
+      { status: "pending", proof: "x" },
+      { status: "verified" },
+      { status: "verified", proof: "x", extra: true },
+    ]) {
+      const pending = client.call(operation, input);
+      result(host, host.messages.at(-1), { ok: true, value });
+      await assert.rejects(pending, { code: "invalid-response" });
+    }
+  }
+  for (const bad of [
+    null,
+    [],
+    {},
+    { ...input, extra: true },
+    { ...input, text: 1 },
+    { ...input, text: "x".repeat(2201) },
+    { ...input, suggestContacts: 1 },
+    { ...input, mediaUrl: 1 },
+    { ...input, mediaUrl: "invalid" },
+    { ...input, mediaUrl: "http://example.com/a" },
+    { ...input, mediaUrl: "https://user:pass@example.com/a" },
+  ])
+    await assert.rejects(client.call("composePublication", bad), TypeError);
+  await assert.rejects(
+    client.call("getPublicationProof", { ...input, text: "bad" }),
+    TypeError,
+  );
+  const denied = client.call("composePublication", input);
+  result(host, host.messages.at(-1), {
+    ok: false,
+    error: { code: "ABORTED", message: "Cancelled" },
+  });
+  await assert.rejects(denied, { code: "aborted" });
+  const controller = new AbortController();
+  const pending = client.call("composePublication", input, {
+    signal: controller.signal,
+  });
+  const request = host.messages.at(-1);
+  controller.abort();
+  await assert.rejects(pending, { code: "aborted" });
+  result(host, request, { ok: true, value: { status: "opened" } });
+  client.dispose();
+});

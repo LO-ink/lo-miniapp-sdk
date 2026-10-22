@@ -107,3 +107,23 @@ export function setVerticalSwipes(
     return Promise.reject(new TypeError("enabled must be a boolean"));
   return client.call("setVerticalSwipes", { enabled }, options);
 }
+
+/** Opens a user-controlled native editor; opening is never proof of publication. */
+export function composePublication(
+  client: MiniAppClient,
+  input: import("./protocol.js").OperationInput<"composePublication">,
+  options?: CallOptions,
+) {
+  return client.call("composePublication", input, {
+    timeoutMs: 60_000,
+    ...options,
+  });
+}
+/** Only the app backend may trust a proof after verifying its signed request binding. */
+export function getPublicationProof(
+  client: MiniAppClient,
+  input: { request: string },
+  options?: CallOptions,
+) {
+  return client.call("getPublicationProof", input, options);
+}

@@ -1,3 +1,4 @@
+import { validatePublicationInput } from "./publication-input.js";
 import { parseLaunchDataUnsafe, type LaunchData } from "./launch.js";
 import type { MiniAppAdapter } from "./adapter.js";
 import { MiniAppError, normalizeMiniAppError } from "./errors.js";
@@ -23,6 +24,8 @@ const operationCapability = {
   hideKeyboard: "hideKeyboard",
   setOrientationLock: "orientation",
   setScreenOrientation: "screenOrientation",
+  composePublication: "publicationSharing",
+  getPublicationProof: "publicationSharing",
   setButton: "mainButton",
   setClosingConfirmation: "closingConfirmation",
   setVerticalSwipes: "verticalSwipes",
@@ -76,6 +79,7 @@ const operationCapability = {
 
 const defaultTimeout: Partial<Record<MiniAppOperation, number>> = {
   shareToStory: 60_000,
+  composePublication: 60_000,
   requestWriteAccess: 60_000,
   requestContact: 60_000,
   requestContactsProof: 60_000,
@@ -194,6 +198,11 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
             "Expected screen orientation mode portrait or auto",
           );
       }
+      if (
+        operation === "composePublication" ||
+        operation === "getPublicationProof"
+      )
+        validatePublicationInput(operation, input);
       const timeoutMs =
         options.timeoutMs ?? defaultTimeout[operation] ?? 30_000;
       if (

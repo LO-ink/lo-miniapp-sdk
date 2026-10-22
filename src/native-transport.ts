@@ -51,6 +51,8 @@ const operationCapabilities = {
   hideKeyboard: "hideKeyboard",
   setOrientationLock: "orientation",
   setScreenOrientation: "screenOrientation",
+  composePublication: "publicationSharing",
+  getPublicationProof: "publicationSharing",
   setButton: "backButton",
   setClosingConfirmation: "closingConfirmation",
   setVerticalSwipes: "verticalSwipes",
@@ -573,6 +575,24 @@ function normalizeOperationResult(
       ? { mode: result.mode }
       : null;
   }
+  if (
+    operation === "composePublication" ||
+    operation === "getPublicationProof"
+  ) {
+    const result = record(value);
+    if (!result) return null;
+    if (operation === "composePublication")
+      return Object.keys(result).length === 1 && result.status === "opened"
+        ? { status: "opened" }
+        : null;
+    if (Object.keys(result).length === 1 && result.status === "pending")
+      return { status: "pending" };
+    return Object.keys(result).length === 2 &&
+      result.status === "verified" &&
+      boundedString(result.proof, 4096)
+      ? { status: "verified", proof: result.proof }
+      : null;
+  }
   if (operation === "requestContactsProof") {
     const result = record(value);
     return result && boundedString(result.proof, 16_384)
@@ -1053,6 +1073,12 @@ export function createNativeAdapter(
   for (const operation of nativeOperations) {
     const typed = operation as LoNativeOperation;
     const capability = operationCapabilities[typed];
+    if (
+      capability === "publicationSharing" &&
+      (!port.operations.has("composePublication") ||
+        !port.operations.has("getPublicationProof"))
+    )
+      continue;
     if (typed === "setButton" && port.operations.has(operation)) {
       const buttonCapabilities = [
         "backButton",

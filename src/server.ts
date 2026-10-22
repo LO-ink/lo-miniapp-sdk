@@ -363,3 +363,287 @@ export function verifyContactsProof(
     throw new ContactsProofError("wrong-context");
   return proof;
 }
+
+export const PUBLICATION_MAX_TTL_SECONDS = 7 * 24 * 60 * 60;
+export const PUBLICATION_PROOF_TTL_SECONDS = 300;
+export const PUBLICATION_MAX_TOKEN_BYTES = 4096;
+export type PublicationKind = "post" | "moment";
+export interface PublicationOptions {
+  appId: string;
+  appKey: string;
+  userId: string;
+  nowSec?: number;
+}
+export interface PublicationRequest {
+  v: 1;
+  appId: string;
+  userId: string;
+  nonce: string;
+  kind: PublicationKind;
+  iat: number;
+  exp: number;
+}
+export interface PublicationProof extends PublicationRequest {
+  requestHash: string;
+  publicationId: string;
+  publishedAt: number;
+  appUrl: string;
+}
+export class PublicationProofError extends Error {
+  constructor(
+    readonly code:
+      | "invalid-data"
+      | "invalid-signature"
+      | "wrong-context"
+      | "expired"
+      | "invalid-time",
+  ) {
+    super(code);
+    this.name = "PublicationProofError";
+  }
+}
+function publicationEncode(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+}
+function publicationDecode(value: string): Uint8Array {
+  try {
+    return Uint8Array.from(
+      atob(value.replaceAll("-", "+").replaceAll("_", "/")),
+      (c) => c.charCodeAt(0),
+    );
+  } catch {
+    throw new PublicationProofError("invalid-data");
+  }
+}
+const domains = {
+  request: "LOPublicationRequest/v1",
+  proof: "LOPublicationProof/v1",
+} as const;
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+function validID(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[1-9][0-9]{0,18}$/.test(value) &&
+    BigInt(value) <= 9223372036854775807n
+  );
+}
+function context(options: PublicationOptions): number {
+  const now = options?.nowSec ?? Math.floor(Date.now() / 1000);
+  if (
+    !options ||
+    typeof options.appKey !== "string" ||
+    !options.appKey ||
+    typeof options.appId !== "string" ||
+    !uuid.test(options.appId) ||
+    !validID(options.userId) ||
+    !Number.isSafeInteger(now) ||
+    now < 0 ||
+    now > Number.MAX_SAFE_INTEGER - PUBLICATION_MAX_TTL_SECONDS
+  )
+    throw new PublicationProofError("invalid-data");
+  return now;
+}
+function nonceValid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9_-]{22}$/.test(value) &&
+    publicationEncode(publicationDecode(value)) === value
+  );
+}
+function mac(body: string, key: string, kind: keyof typeof domains): Buffer {
+  const derived = createHmac("sha256", key).update(domains[kind]).digest();
+  return createHmac("sha256", derived).update(body).digest();
+}
+function sign(
+  payload: PublicationRequest | PublicationProof,
+  key: string,
+  kind: keyof typeof domains,
+): string {
+  const body = publicationEncode(
+    new TextEncoder().encode(JSON.stringify(payload)),
+  );
+  return body + "." + mac(body, key, kind).toString("base64url");
+}
+/** Stable opaque owner lookup key. Never use a media-upload receipt as publication proof. */
+export function publicationReference(request: string): string {
+  if (
+    typeof request !== "string" ||
+    request.length > PUBLICATION_MAX_TOKEN_BYTES ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(request)
+  )
+    throw new PublicationProofError("invalid-data");
+  return createHash("sha256")
+    .update("LOPublicationReference/v1\n" + request)
+    .digest("hex");
+}
+function read(
+  raw: string,
+  options: PublicationOptions,
+  kind: keyof typeof domains,
+): PublicationRequest | PublicationProof {
+  const now = context(options);
+  if (
+    typeof raw !== "string" ||
+    raw.length > PUBLICATION_MAX_TOKEN_BYTES ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(raw)
+  )
+    throw new PublicationProofError("invalid-data");
+  const [body, signature] = raw.split(".");
+  const bytes = publicationDecode(body),
+    sig = publicationDecode(signature);
+  if (publicationEncode(bytes) !== body || publicationEncode(sig) !== signature)
+    throw new PublicationProofError("invalid-data");
+  if (!timingSafeEqual(sig, mac(body, options.appKey, kind)))
+    throw new PublicationProofError("invalid-signature");
+  let data: Record<string, unknown>;
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    data = JSON.parse(text);
+    if (!data || typeof data !== "object" || Array.isArray(data))
+      throw new Error();
+    const keys = [...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g)].map((match) =>
+      JSON.parse('"' + match[1] + '"'),
+    );
+    if (new Set(keys).size !== keys.length) throw new Error();
+  } catch {
+    throw new PublicationProofError("invalid-data");
+  }
+  const fields = [
+    "v",
+    "appId",
+    "userId",
+    "nonce",
+    "kind",
+    "iat",
+    "exp",
+    ...(kind === "proof"
+      ? ["requestHash", "publicationId", "publishedAt", "appUrl"]
+      : []),
+  ];
+  if (
+    Object.keys(data).length !== fields.length ||
+    !fields.every((key) => Object.hasOwn(data, key)) ||
+    data.v !== 1 ||
+    !nonceValid(data.nonce) ||
+    (data.kind !== "post" && data.kind !== "moment")
+  )
+    throw new PublicationProofError("invalid-data");
+  if (data.appId !== options.appId || data.userId !== options.userId)
+    throw new PublicationProofError("wrong-context");
+  const { iat, exp } = data;
+  if (
+    typeof iat !== "number" ||
+    typeof exp !== "number" ||
+    !Number.isSafeInteger(iat) ||
+    !Number.isSafeInteger(exp) ||
+    iat < 0 ||
+    exp <= iat ||
+    exp - iat >
+      (kind === "request"
+        ? PUBLICATION_MAX_TTL_SECONDS
+        : PUBLICATION_PROOF_TTL_SECONDS) ||
+    iat > now + 30
+  )
+    throw new PublicationProofError("invalid-time");
+  if (exp <= now) throw new PublicationProofError("expired");
+  if (
+    kind === "proof" &&
+    (typeof data.requestHash !== "string" ||
+      !/^[0-9a-f]{64}$/.test(data.requestHash) ||
+      !validID(data.publicationId) ||
+      typeof data.publishedAt !== "number" ||
+      !Number.isSafeInteger(data.publishedAt) ||
+      data.publishedAt < 0 ||
+      data.publishedAt > iat ||
+      data.appUrl !== "https://lo.ink/app/" + options.appId)
+  )
+    throw new PublicationProofError("invalid-data");
+  return data as unknown as PublicationRequest | PublicationProof;
+}
+export function createPublicationRequest(
+  options: PublicationOptions & {
+    nonce: string;
+    kind: PublicationKind;
+    ttlSec?: number;
+  },
+): string {
+  const now = context(options),
+    ttl = options.ttlSec ?? PUBLICATION_MAX_TTL_SECONDS;
+  if (
+    !nonceValid(options.nonce) ||
+    (options.kind !== "post" && options.kind !== "moment") ||
+    !Number.isSafeInteger(ttl) ||
+    ttl < 1 ||
+    ttl > PUBLICATION_MAX_TTL_SECONDS
+  )
+    throw new PublicationProofError("invalid-data");
+  return sign(
+    {
+      v: 1,
+      appId: options.appId,
+      userId: options.userId,
+      nonce: options.nonce,
+      kind: options.kind,
+      iat: now,
+      exp: now + ttl,
+    },
+    options.appKey,
+    "request",
+  );
+}
+/** Expected identity must come from the authenticated registered-app launch. */
+export function verifyPublicationRequest(
+  raw: string,
+  options: PublicationOptions,
+): PublicationRequest {
+  return read(raw, options, "request") as PublicationRequest;
+}
+/** Trusted platform issuer only, after checking the real authored publication and its link. */
+export function signPublicationProof(
+  request: string,
+  publication: { publicationId: string; publishedAt: number; appUrl: string },
+  options: PublicationOptions,
+): string {
+  const verified = verifyPublicationRequest(request, options),
+    now = context(options);
+  if (
+    !validID(publication.publicationId) ||
+    !Number.isSafeInteger(publication.publishedAt) ||
+    publication.publishedAt < verified.iat ||
+    publication.publishedAt > verified.exp ||
+    publication.publishedAt > now ||
+    publication.appUrl !== "https://lo.ink/app/" + options.appId
+  )
+    throw new PublicationProofError("wrong-context");
+  const proof: PublicationProof = {
+    ...verified,
+    iat: now,
+    exp: Math.min(now + PUBLICATION_PROOF_TTL_SECONDS, verified.exp),
+    requestHash: publicationReference(request),
+    publicationId: publication.publicationId,
+    publishedAt: publication.publishedAt,
+    appUrl: publication.appUrl,
+  };
+  return sign(proof, options.appKey, "proof");
+}
+export function verifyPublicationProof(
+  raw: string,
+  options: PublicationOptions & { request: string },
+): PublicationProof {
+  const request = verifyPublicationRequest(options.request, options);
+  const proof = read(raw, options, "proof") as PublicationProof;
+  if (
+    proof.nonce !== request.nonce ||
+    proof.kind !== request.kind ||
+    proof.requestHash !== publicationReference(options.request) ||
+    proof.exp > request.exp ||
+    proof.iat < request.iat ||
+    proof.publishedAt < request.iat ||
+    proof.publishedAt > request.exp
+  )
+    throw new PublicationProofError("wrong-context");
+  return proof;
+}
