@@ -58,6 +58,17 @@ func TestSharedFixture(t *testing.T) {
 }
 func TestInvalid(t *testing.T) {
 	o, r, p, request, proof := fixture(t)
+	var wrongCase map[string]any
+	encoded, _ := json.Marshal(p)
+	if err := json.Unmarshal(encoded, &wrongCase); err != nil {
+		t.Fatal(err)
+	}
+	wrongCase["AppId"] = wrongCase["appId"]
+	delete(wrongCase, "appId")
+	caseToken, _ := sign(wrongCase, o.AppKey, proofDomain)
+	if _, err := VerifyProof(caseToken, request, o); err == nil {
+		t.Error("noncanonical JSON key accepted")
+	}
 	changes := []func(*Proof){func(p *Proof) { p.V = 2 }, func(p *Proof) { p.AppID = "wrong" }, func(p *Proof) { p.UserID = "202" }, func(p *Proof) { p.Kind = "post" }, func(p *Proof) { p.Nonce = "bad" }, func(p *Proof) { p.Issued = -1 }, func(p *Proof) { p.Issued = o.Now.Unix() + 31 }, func(p *Proof) { p.Expires = o.Now.Unix() }, func(p *Proof) { p.Expires = p.Issued + 301 }, func(p *Proof) { p.RequestHash = strings.Repeat("0", 64) }, func(p *Proof) { p.PublicationID = "9223372036854775808" }, func(p *Proof) { p.PublishedAt = r.Issued - 1 }, func(p *Proof) { p.PublishedAt = p.Issued + 1 }, func(p *Proof) { p.AppURL = "https://example.com" }}
 	for i, change := range changes {
 		v := p
