@@ -1016,3 +1016,97 @@ test("contacts proof uses advertised native operation and explicit denial", asyn
   await assert.rejects(denied, { code: "denied" });
   client.dispose();
 });
+
+test("target screen orientation negotiates separately from current-orientation locking", async () => {
+  for (const advertised of [
+    { operations: ["setOrientationLock"], capabilities: ["orientation"] },
+    { operations: ["setScreenOrientation"], capabilities: ["orientation"] },
+    { operations: ["setOrientationLock"], capabilities: ["screenOrientation"] },
+  ]) {
+    const host = nativePort(advertised);
+    const client = createLoClient({ LO: { MiniAppNative: host.port } });
+    assert.equal(client.supports("screenOrientation"), false);
+    await assert.rejects(
+      client.call("setScreenOrientation", { mode: "portrait" }),
+      { code: "unsupported" },
+    );
+    assert.equal(host.messages.length, 0);
+    client.dispose();
+  }
+});
+
+test("target screen orientation sends the requested mode and rejects malformed or mismatched host results", async () => {
+  const host = nativePort({
+    operations: ["setScreenOrientation", "setOrientationLock"],
+    capabilities: ["screenOrientation", "orientation"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  assert.equal(client.supports("screenOrientation"), true);
+  for (const mode of ["portrait", "auto"]) {
+    const pending = client.call("setScreenOrientation", { mode });
+    const request = host.messages.at(-1);
+    assert.equal(request.operation, "setScreenOrientation");
+    assert.deepEqual(request.input, { mode });
+    result(host, request, { ok: true, value: { mode } });
+    assert.deepEqual(await pending, { mode });
+  }
+  for (const value of [
+    undefined,
+    null,
+    true,
+    {},
+    { mode: "landscape" },
+    { mode: "auto" },
+    { mode: "portrait", locked: true },
+  ]) {
+    const pending = client.call("setScreenOrientation", { mode: "portrait" });
+    result(host, host.messages.at(-1), { ok: true, value });
+    await assert.rejects(pending, { code: "invalid-response" });
+  }
+  const legacy = client.call("setOrientationLock", { locked: true });
+  assert.deepEqual(host.messages.at(-1).input, { locked: true });
+  result(host, host.messages.at(-1), { ok: true });
+  assert.equal(await legacy, undefined);
+  client.dispose();
+});
+
+test("target screen orientation validates input before transport and preserves cancellation and host refusal", async () => {
+  const host = nativePort({
+    operations: ["setScreenOrientation"],
+    capabilities: ["screenOrientation"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  for (const input of [
+    undefined,
+    null,
+    1,
+    "portrait",
+    [],
+    {},
+    { mode: "landscape" },
+    { mode: "current" },
+    { mode: "portrait", extra: true },
+    Object.create({ mode: "portrait" }),
+  ]) {
+    await assert.rejects(client.call("setScreenOrientation", input), TypeError);
+  }
+  assert.equal(host.messages.length, 0);
+  const pending = client.call("setScreenOrientation", { mode: "portrait" });
+  result(host, host.messages.at(-1), {
+    ok: false,
+    error: { code: "NOT_AVAILABLE", message: "Orientation unavailable" },
+  });
+  await assert.rejects(pending, { code: "failed" });
+  const controller = new AbortController();
+  const cancelled = client.call(
+    "setScreenOrientation",
+    { mode: "portrait" },
+    { signal: controller.signal },
+  );
+  const request = host.messages.at(-1);
+  controller.abort();
+  await assert.rejects(cancelled, { code: "aborted" });
+  assert.equal(host.messages.at(-1).kind, "cancel");
+  result(host, request, { ok: true, value: { mode: "portrait" } });
+  client.dispose();
+});
