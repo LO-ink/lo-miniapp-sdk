@@ -330,7 +330,8 @@ if (client.supports("screenOrientation")) {
   const applied = await client.call("setScreenOrientation", {
     mode: "portrait",
   });
-  // A successful response confirms the host applied the requested mode.
+  // The host accepted the native orientation policy.
+  // Still gate portrait-only interaction on the actual viewport.
   console.log(applied.mode); // "portrait"
 } else {
   // Explain that portrait locking requires an updated LO client.
@@ -340,11 +341,16 @@ if (client.supports("screenOrientation")) {
 Only `{ mode: "portrait" }` and `{ mode: "auto" }` are accepted. `auto` releases
 this mini-app's orientation restriction; it does not override device policy or
 another native screen's ownership. The host restores the previous owner on
-mini-app teardown. Native refusal rejects the call; callers must handle it and
-must not start portrait-only interaction as if locking succeeded. Cancellation
-and timeouts use the usual `signal` and `timeoutMs` call options. A returned mode
-that differs from the request, or a malformed result, rejects with
-`invalid-response`.
+mini-app teardown. A successful result confirms the native **policy**, not the
+physical screen orientation or a completed rotation. The operating system may
+apply rotation asynchronously or keep the current geometry under its own
+restrictions. Keep checking viewport dimensions and pause portrait-only
+interaction while the viewport is landscape, including after a successful call.
+
+Native errors reported by the host reject the call; the SDK cannot independently
+verify the physical device pose. Cancellation and timeouts use the usual `signal`
+and `timeoutMs` call options. A returned policy that differs from the request,
+or a malformed result, rejects with `invalid-response`.
 
 `setOrientationLock({ locked: true })` remains unchanged: it locks the **current**
 orientation and cannot promise portrait when launched in landscape. Older hosts
