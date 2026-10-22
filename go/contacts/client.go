@@ -80,7 +80,7 @@ func (c Client) Proof(ctx stdcontext.Context, request string) (string, error) {
 		if err != nil || seconds < 1 {
 			seconds = 1
 		}
-		return "", RateLimitError{RetryAfter: time.Duration(min(seconds, int((1<<63-1)/int64(time.Second)))) * time.Second}
+		return "", RateLimitError{RetryAfter: time.Duration(min(int64(seconds), (1<<63-1)/int64(time.Second))) * time.Second}
 	}
 	if res.StatusCode != http.StatusOK {
 		return "", ErrUnavailable
