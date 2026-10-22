@@ -59,6 +59,17 @@ func TestSharedFixture(t *testing.T) {
 }
 func TestInvalidProof(t *testing.T) {
 	o, _, base, request, proof := fixture(t)
+	var wrongCase map[string]any
+	encoded, _ := json.Marshal(base)
+	if err := json.Unmarshal(encoded, &wrongCase); err != nil {
+		t.Fatal(err)
+	}
+	wrongCase["App_id"] = wrongCase["app_id"]
+	delete(wrongCase, "app_id")
+	caseToken, _ := sign(wrongCase, o.AppKey, proofDomain)
+	if _, err := VerifyProof(caseToken, request, o); err == nil {
+		t.Error("noncanonical JSON key accepted")
+	}
 	mutations := []func(*Proof){func(p *Proof) { p.V = 2 }, func(p *Proof) { p.UserID = "202" }, func(p *Proof) { p.AppID = "other" }, func(p *Proof) { p.Nonce = "AQECAwQFBgcICQoLDA0ODw" }, func(p *Proof) { p.RequestHash = strings.Repeat("0", 64) }, func(p *Proof) { p.Expires = 1700000020 }, func(p *Proof) { p.Issued = 1700000200 }, func(p *Proof) { p.Issued = -1 }, func(p *Proof) { p.Expires = 1700000131 }, func(p *Proof) { p.Issued = 1699999969; p.Expires = 1700000040 }, func(p *Proof) { p.IDs = []string{"404"} }, func(p *Proof) { p.IDs = []string{"202", "202"} }, func(p *Proof) { p.IDs = nil }, func(p *Proof) { p.IDs = []string{"9223372036854775808"} }, func(p *Proof) { p.Nonce = "bad" }}
 	for i, mutate := range mutations {
 		p := base

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -100,7 +101,7 @@ func sign(value any, key, domain string) (string, error) {
 	body := b64.EncodeToString(raw)
 	return body + "." + b64.EncodeToString(mac(body, key, domain)), nil
 }
-func read(raw string, o Options, domain string, out any, fields int) error {
+func read(raw string, o Options, domain string, out any, fields []string) error {
 	if _, err := context(o); err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func read(raw string, o Options, domain string, out any, fields int) error {
 	for d.More() {
 		t, err = d.Token()
 		key, ok := t.(string)
-		if err != nil || !ok || seen[key] {
+		if err != nil || !ok || seen[key] || !slices.Contains(fields, key) {
 			return ErrInvalid
 		}
 		seen[key] = true
@@ -138,7 +139,7 @@ func read(raw string, o Options, domain string, out any, fields int) error {
 			return ErrInvalid
 		}
 	}
-	if _, err = d.Token(); err != nil || len(seen) != fields {
+	if _, err = d.Token(); err != nil || len(seen) != len(fields) {
 		return ErrInvalid
 	}
 	if _, err = d.Token(); err != io.EOF {
@@ -188,7 +189,7 @@ func CreateRequest(o CreateOptions) (string, error) {
 }
 func VerifyRequest(raw string, o Options) (Request, error) {
 	var r Request
-	if err := read(raw, o, requestDomain, &r, 7); err != nil {
+	if err := read(raw, o, requestDomain, &r, []string{"v", "appId", "userId", "nonce", "kind", "iat", "exp"}); err != nil {
 		return r, err
 	}
 	if err := validate(r, o, MaxTTLSeconds); err != nil {
@@ -221,7 +222,7 @@ func VerifyProof(raw, request string, o Options) (Proof, error) {
 		return Proof{}, err
 	}
 	var p Proof
-	if err = read(raw, o, proofDomain, &p, 11); err != nil {
+	if err = read(raw, o, proofDomain, &p, []string{"v", "appId", "userId", "nonce", "kind", "iat", "exp", "requestHash", "publicationId", "publishedAt", "appUrl"}); err != nil {
 		return Proof{}, err
 	}
 	if err = validate(p.Request, o, ProofTTLSeconds); err != nil {
