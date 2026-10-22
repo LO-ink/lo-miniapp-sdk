@@ -36,6 +36,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: "1.27.3", cache: false }
       - run: make go-ci
+      - name: Compile contacts helper on 32-bit Linux
+        run: cd go && GOOS=linux GOARCH=386 go test -c -o "$RUNNER_TEMP/contacts-386.test" ./contacts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
