@@ -245,6 +245,41 @@ and a synthetic scanner regression before each repository scan.
 
 `client.adapter.snapshot().locale` is the selected interface language supplied by supporting native LO hosts, as a bounded language tag such as `en` or `pt-BR`. This optional launch/environment value is independent of `client.launchUnsafe().user?.languageCode`, which comes from signed launch data. Existing hosts may omit `locale`; do not substitute browser language and label it as LO language.
 
+### Server-to-server mutual contacts
+
+Use the public `POST https://bots.lo.ink/miniapps/v1/contacts/match` endpoint
+from your backend after the person grants contacts access in LO. The body is
+`{appId, userId, request}`: `request` is the existing `LOContactsRequest/v1`
+HMAC token signed with this app's key, with at most 200 participant candidates.
+`userId` must come from verified launch identity. No LO user bearer token,
+internal service token or device contact book belongs on your backend.
+
+LO verifies the signature, a stored grant for this exact app/user, and its own
+app launch membership before looking up mutual contacts. The response is
+`{proof}`, using the existing request-bound proof format. A grant lasts 30 days;
+only an explicit native confirmation creates or renews it. It can be revoked
+from the app's native menu. LO rechecks it for every server batch, including a
+second check before returning the result. Existing issued results/snapshots can
+live until their short expiry; a grant is never a durable copy of the graph.
+
+Node backends can call `matchContacts(candidateIds, {appId, appKey, userId,
+signal?})` or `fetchContactsProof(request, options)` from the server export.
+Go backends can use `contacts.Client{Options: contacts.Options{AppID, AppKey,
+UserID}}.Match(ctx, candidateIDs)`. Helpers verify each returned proof, refuse
+redirects, bound response sizes/deadlines and never return a partial match set.
+An optional `endpoint` (Node) / `URL` (Go) selects another trusted HTTPS LO
+installation; loopback HTTP is allowed for tests and local development only.
+
+HTTP 403 means `permission_required` (Node `ContactsPermissionRequired`, Go
+`contacts.ErrPermissionRequired`); it must not become an empty ranking. 429
+carries `Retry-After`; 503 means unavailable. Helpers do not automatically retry
+or hide either failure. A new native LO can bootstrap the grant through the
+existing `requestContactsProof` consent flow. Older hosts may still use its
+session-only proof path; they do not silently acquire background permission.
+Once a stored grant exists, server queries work regardless of which host
+version currently opens the game. Missing support for the first consent must
+show an update instruction. Notification write access remains separate.
+
 ### Mutual contacts without a private service connection
 
 New LO hosts may advertise `requestContactsProof`. This is distinct from
@@ -426,3 +461,5 @@ has its own issuance/expiry, retains the request's nonce and kind, and identifie
 an object published between request issuance and expiry, no later than proof
 issuance. `appUrl` is exactly `https://lo.ink/app/{appId}`.
 `go/publication/testdata/proof.json` is the shared synthetic Node/Go fixture.
+
+The server `matchContacts` / Go `Client.Match` helpers process at most four batches concurrently and enforce a shared 20-second deadline. A 429 preserves `Retry-After` (`ContactsRateLimited` / `RateLimitError`) and is retried at most five times per batch within that deadline. Matches preserve candidate order; any failure discards the entire partial intersection. Caller cancellation stops all outstanding requests. Consumers should allow at least 25 seconds for a contacts HTTP request.

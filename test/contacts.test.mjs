@@ -1,12 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createHmac } from "node:crypto";
+import { createHmac, createHash } from "node:crypto";
 import {
   createContactsRequest,
   verifyContactsRequest,
   verifyContactsProof,
   contactsBatches,
+  fetchContactsProof,
+  matchContacts,
+  ContactsPermissionRequired,
 } from "../dist/server.js";
 import { createMiniAppClient, requestContactsProof } from "../dist/index.js";
 const f = JSON.parse(
@@ -227,4 +230,136 @@ test("contacts helper preserves unsupported, consent denial and cancellation", a
     code: "unsupported",
   });
   old.dispose();
+});
+
+test("server contacts uses grants, verifies proofs, and refuses partial/redirected results", async (t) => {
+  const { createServer } = await import("node:http");
+  let status = 200,
+    calls = 0;
+  const server = createServer(async (req, res) => {
+    calls++;
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const body = JSON.parse(raw),
+      request = verifyContactsRequest(body.request, {
+        ...options,
+        nowSec: Math.floor(Date.now() / 1000),
+      });
+    assert.equal(body.appId, options.appId);
+    assert.equal(body.userId, options.userId);
+    if (status !== 200) {
+      res.writeHead(status, { Location: "https://example.com" });
+      res.end();
+      return;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const proof = signed({
+      v: 1,
+      app_id: options.appId,
+      user_id: options.userId,
+      iat: now,
+      exp: Math.min(now + 120, request.exp),
+      nonce: request.nonce,
+      request_hash: createHash("sha256").update(body.request).digest("hex"),
+      ids: request.candidate_ids.filter((id) => id === "202"),
+    });
+    res.end(JSON.stringify({ proof }));
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const o = {
+    appId: options.appId,
+    appKey: options.appKey,
+    userId: options.userId,
+    endpoint: `http://127.0.0.1:${server.address().port}`,
+  };
+  const ids = Array.from({ length: 201 }, (_, i) => String(i + 100));
+  assert.deepEqual(await matchContacts(ids, o), ["202"]);
+  assert.equal(calls, 2);
+  const request = createContactsRequest({ ...o, candidateIds: ["202"] });
+  status = 403;
+  await assert.rejects(
+    fetchContactsProof(request, o),
+    ContactsPermissionRequired,
+  );
+  status = 503;
+  await assert.rejects(matchContacts(ids, o), /unavailable/);
+  status = 302;
+  await assert.rejects(fetchContactsProof(request, o));
+  await assert.rejects(
+    fetchContactsProof(request, { ...o, endpoint: "https://user@example.com" }),
+    /invalid/,
+  );
+  const before = calls;
+  assert.deepEqual(await matchContacts([], o), []);
+  assert.equal(calls, before);
+});
+
+test("server Match recovers the platform quota with at most four active calls", async () => {
+  const originalFetch = globalThis.fetch;
+  let tokens = 40,
+    updated = Date.now(),
+    active = 0,
+    peak = 0,
+    calls = 0;
+  globalThis.fetch = async (_url, init) => {
+    active++;
+    peak = Math.max(peak, active);
+    calls++;
+    try {
+      const now = Date.now();
+      tokens = Math.min(40, tokens + (now - updated) * 0.02);
+      updated = now;
+      if (tokens < 1)
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": "1" },
+        });
+      tokens--;
+      const body = JSON.parse(init.body);
+      const request = verifyContactsRequest(body.request, {
+        ...options,
+        nowSec: undefined,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      const sec = Math.floor(Date.now() / 1000);
+      return Response.json({
+        proof: signed({
+          v: 1,
+          app_id: options.appId,
+          user_id: options.userId,
+          iat: sec,
+          exp: Math.min(sec + 120, request.exp),
+          nonce: request.nonce,
+          request_hash: createHash("sha256").update(body.request).digest("hex"),
+          ids: request.candidate_ids,
+        }),
+      });
+    } finally {
+      active--;
+    }
+  };
+  try {
+    const ids = Array.from({ length: 20000 }, (_, i) => String(i + 1000));
+    assert.deepEqual(
+      await matchContacts(ids, {
+        appId: options.appId,
+        appKey: options.appKey,
+        userId: options.userId,
+      }),
+      ids,
+    );
+    assert.ok(peak <= 4);
+    assert.ok(calls > 100);
+    await assert.rejects(
+      matchContacts(ids, {
+        appId: options.appId,
+        appKey: options.appKey,
+        userId: options.userId,
+        signal: AbortSignal.abort(),
+      }),
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

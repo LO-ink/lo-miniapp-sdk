@@ -49,7 +49,7 @@ test("SDK has no runtime dependency on hosts, compatibility, or server clients",
           .filter((name) => !name.startsWith("."));
         assert.deepEqual(
           dependencies,
-          name.endsWith(".d.ts") ? [] : ["node:crypto"],
+          name.endsWith(".d.ts") ? [] : ["node:timers/promises", "node:crypto"],
           name,
         );
         continue;
