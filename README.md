@@ -350,3 +350,73 @@ that differs from the request, or a malformed result, rejects with
 orientation and cannot promise portrait when launched in landscape. Older hosts
 with only `orientation` reject the new operation as `unsupported`; do not fall
 back to locking the current orientation and claim portrait support.
+
+### Publication drafts and verified receipts
+
+SDK 0.26 adds `publicationSharing`. The capability requires both
+`composePublication` and `getPublicationProof` on an updated registered LO host.
+An older host remains unsupported. Installing the SDK does not update the native
+client or deploy the platform publication services.
+
+1. An authenticated application backend creates a request with
+   `createPublicationRequest({appId, appKey, userId, nonce, kind})` from
+   `@lo-ink/miniapp-sdk/server`. Use the verified launch user, a fresh 16-byte
+   base64url nonce, and kind `post` or `moment`. Persist the exact request and its
+   application-specific operation. Keep the app key on the backend.
+2. The page calls `composePublication(client, {request, text, mediaUrl,
+suggestContacts})`. Text is optional, up to 2,200 characters; the optional
+   media URL must be public HTTPS without credentials, up to 2,048 characters.
+   A moment requires suitable media. The host verifies the challenge, supplies
+   the registered app link and opens an editable native draft. The person reviews
+   the draft and chooses whether to publish. `{status:"opened"}` acknowledges
+   editor handoff only: it is **not** publication confirmation or a reward claim.
+3. Optional invite suggestions stay inside LO. The host may offer mutual contacts
+   who have not launched this app, with currently online candidates first. The
+   page receives no contact IDs, presence, graph or selection. Suggestions do not
+   publish, message or guarantee a notification to anyone.
+4. After returning to the app, call `getPublicationProof(client, {request})`.
+   `{status:"pending"}` means no qualifying publication is available yet. A
+   verified response contains `{status:"verified", proof}`. The platform checks
+   the authoritative publication owner, immutable request reference, publication
+   time, published state and canonical app link. Upload completion and editor
+   opening cannot produce a receipt. Deleted or taken-down objects do not qualify;
+   natural moment visibility expiry alone does not prevent recovery.
+5. The application backend calls `verifyPublicationProof(proof, {appId, appKey,
+userId, request})`. Any reward must be transactional and idempotent using the
+   actual `(kind, publicationId)` and the application's reward policy. Never
+   trust client-supplied publication IDs, timestamps or an editor-success flag.
+
+Requests default to a seven-day lifetime, configurable up to seven days, so a
+persisted native upload and a later app session can recover the result. Proofs
+last at most five minutes and never outlive the request. Recovery still requires
+an authenticated registered-app session and an unexpired original challenge.
+Avoid aggressive polling; preserve the server-owned request and allow an explicit
+retry. Cancel, unsupported, permission and network errors remain typed host errors;
+they are not equivalent to a verified publication.
+
+The Go `publication` package provides `CreateRequest`, `VerifyRequest`,
+`Reference`, `SignProof` and `VerifyProof`. The trusted issuer must obtain
+`Published` from the authoritative owner service before `SignProof`; the helper
+cannot check an object database. App keys are shared with LO, so receipts are
+app-scoped HMAC attestations, not third-party public signatures. Key rotation
+invalidates outstanding requests and receipts.
+
+#### Publication wire version 1
+
+Tokens use canonical unpadded base64url JSON and HMAC as described for contacts,
+with separate domains `LOPublicationRequest/v1` and `LOPublicationProof/v1`.
+Authenticate the exact encoded payload, not reserialized JSON. Unknown or
+repeated keys, malformed UTF-8, noncanonical encodings and tokens over 4,096 bytes
+are rejected. Exact payload members use camelCase:
+
+- Request: `{v:1, appId, userId, nonce, kind, iat, exp}`.
+- Proof: request members plus `{requestHash, publicationId, publishedAt, appUrl}`.
+
+The reference and `requestHash` are lowercase SHA-256 hex of UTF-8
+`"LOPublicationReference/v1\n" + request`, including the complete signed request.
+The nonce is 16 random bytes; IDs are positive signed-int64 decimal strings and
+appId is the lowercase registered UUID. Times are integer Unix seconds. A proof
+has its own issuance/expiry, retains the request's nonce and kind, and identifies
+an object published between request issuance and expiry, no later than proof
+issuance. `appUrl` is exactly `https://lo.ink/app/{appId}`.
+`go/publication/testdata/proof.json` is the shared synthetic Node/Go fixture.

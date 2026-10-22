@@ -1,0 +1,28 @@
+{
+  "appKey": "fixture-only-publication-key",
+  "nowSec": 1700000010,
+  "request": "eyJ2IjoxLCJhcHBJZCI6IjExMTExMTExLTIyMjItMzMzMy00NDQ0LTU1NTU1NTU1NTU1NSIsInVzZXJJZCI6IjEwMSIsIm5vbmNlIjoiQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsImtpbmQiOiJtb21lbnQiLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MTcwMDYwNDgwMH0.7xyL3SBHabK4BgdQKl2XJKsE9x4M7phy-wj0pxn7bzU",
+  "proof": "eyJ2IjoxLCJhcHBJZCI6IjExMTExMTExLTIyMjItMzMzMy00NDQ0LTU1NTU1NTU1NTU1NSIsInVzZXJJZCI6IjEwMSIsIm5vbmNlIjoiQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsImtpbmQiOiJtb21lbnQiLCJpYXQiOjE3MDAwMDAwMTAsImV4cCI6MTcwMDAwMDMxMCwicmVxdWVzdEhhc2giOiIyMzc4Mjk3NWY3YWUyOGQ3ZDc0NjAwYzZjZjEwNWI3MzMxNjA0ZTIxMzcwZjVlOWE3NTg2MTQzY2M5Y2I2ZDk4IiwicHVibGljYXRpb25JZCI6IjkwMDEiLCJwdWJsaXNoZWRBdCI6MTcwMDAwMDAwNSwiYXBwVXJsIjoiaHR0cHM6Ly9sby5pbmsvYXBwLzExMTExMTExLTIyMjItMzMzMy00NDQ0LTU1NTU1NTU1NTU1NSJ9.BOZI7naApGBmrQ-cTQsUZaH089GhgwE6H3GJ_F3oZ0c",
+  "requestPayload": {
+    "v": 1,
+    "appId": "11111111-2222-3333-4444-555555555555",
+    "userId": "101",
+    "nonce": "AAECAwQFBgcICQoLDA0ODw",
+    "kind": "moment",
+    "iat": 1700000000,
+    "exp": 1700604800
+  },
+  "proofPayload": {
+    "v": 1,
+    "appId": "11111111-2222-3333-4444-555555555555",
+    "userId": "101",
+    "nonce": "AAECAwQFBgcICQoLDA0ODw",
+    "kind": "moment",
+    "iat": 1700000010,
+    "exp": 1700000310,
+    "requestHash": "23782975f7ae28d7d74600c6cf105b7331604e21370f5e9a7586143cc9cb6d98",
+    "publicationId": "9001",
+    "publishedAt": 1700000005,
+    "appUrl": "https://lo.ink/app/11111111-2222-3333-4444-555555555555"
+  }
+}
