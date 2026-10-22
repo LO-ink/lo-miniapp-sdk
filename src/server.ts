@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
   createHash,
   createHmac,
@@ -646,4 +647,156 @@ export function verifyPublicationProof(
   )
     throw new PublicationProofError("wrong-context");
   return proof;
+}
+
+export const CONTACTS_MATCH_URL =
+  "https://bots.lo.ink/miniapps/v1/contacts/match";
+export class ContactsPermissionRequired extends Error {
+  constructor() {
+    super("contacts permission required");
+    this.name = "ContactsPermissionRequired";
+  }
+}
+export class ContactsRateLimited extends Error {
+  constructor(readonly retryAfterMs: number) {
+    super("contacts service unavailable: rate limited");
+    this.name = "ContactsRateLimited";
+  }
+}
+export interface ServerContactsOptions {
+  appId: string;
+  appKey: string;
+  userId: string;
+  endpoint?: string;
+  signal?: AbortSignal;
+}
+/** Server-only: LO checks a stored user grant independently on every request. */
+export async function fetchContactsProof(
+  request: string,
+  options: ServerContactsOptions,
+): Promise<string> {
+  const endpoint = new URL(options.endpoint ?? CONTACTS_MATCH_URL);
+  if (
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.hash ||
+    endpoint.search ||
+    (endpoint.protocol !== "https:" &&
+      !(
+        endpoint.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
+      ))
+  )
+    throw new Error("invalid contacts endpoint");
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, AbortSignal.timeout(5000)])
+    : AbortSignal.timeout(5000);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    redirect: "error",
+    credentials: "omit",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      appId: options.appId,
+      userId: options.userId,
+      request,
+    }),
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    if (response.status === 403) throw new ContactsPermissionRequired();
+    if (response.status === 429) {
+      const value = response.headers.get("retry-after") ?? "";
+      const seconds = /^\d+$/.test(value) ? Number(value) : 1;
+      throw new ContactsRateLimited(
+        (Number.isSafeInteger(seconds) &&
+        seconds > 0 &&
+        seconds <= Number.MAX_SAFE_INTEGER / 1000
+          ? seconds
+          : 1) * 1000,
+      );
+    }
+    throw new Error("contacts service unavailable");
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("contacts service unavailable");
+  let raw = "";
+  let size = 0;
+  const decoder = new TextDecoder();
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > 17408) throw new Error("contacts response too large");
+      raw += decoder.decode(chunk.value, { stream: true });
+    }
+    raw += decoder.decode();
+  } finally {
+    await reader.cancel();
+  }
+  const out = JSON.parse(raw) as { proof?: unknown };
+  if (typeof out.proof !== "string")
+    throw new Error("contacts service unavailable");
+  verifyContactsProof(out.proof, {
+    appKey: options.appKey,
+    appId: options.appId,
+    userId: options.userId,
+    request,
+  });
+  return out.proof;
+}
+export async function matchContacts(
+  candidateIds: readonly string[],
+  options: ServerContactsOptions,
+): Promise<string[]> {
+  const batches = contactsBatches(candidateIds);
+  const controller = new AbortController();
+  const signal = AbortSignal.any([
+    controller.signal,
+    AbortSignal.timeout(20_000),
+    ...(options.signal ? [options.signal] : []),
+  ]);
+  const results: string[][] = new Array(batches.length);
+  let next = 0;
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(4, batches.length) }, async () => {
+        while (next < batches.length) {
+          signal.throwIfAborted();
+          const index = next++;
+          const request = createContactsRequest({
+            ...options,
+            candidateIds: batches[index]!,
+          });
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const proof = await fetchContactsProof(request, {
+                ...options,
+                signal,
+              });
+              results[index] = verifyContactsProof(proof, {
+                ...options,
+                request,
+              }).ids;
+              break;
+            } catch (error) {
+              if (!(error instanceof ContactsRateLimited) || attempt >= 5)
+                throw error;
+              await delay(
+                Math.min(error.retryAfterMs, 2_147_483_647),
+                undefined,
+                { signal },
+              );
+            }
+          }
+        }
+      }),
+    );
+    return results.flat();
+  } finally {
+    // Stop sibling requests before propagating any failure; never return partial matches.
+    controller.abort();
+  }
 }
