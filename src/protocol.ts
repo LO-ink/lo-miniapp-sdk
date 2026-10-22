@@ -6,6 +6,7 @@ export const MINI_APP_CAPABILITIES = [
   "fullscreen",
   "hideKeyboard",
   "orientation",
+  "screenOrientation",
   "backButton",
   "mainButton",
   "secondaryButton",
@@ -148,6 +149,7 @@ export type BiometryInfo = {
   tokenSaved: boolean;
   deviceId: string;
 };
+export type ScreenOrientationMode = "portrait" | "auto";
 export type SensorOptions = { refreshRate?: number };
 export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
 export type RequestContext = { signal?: AbortSignal };
@@ -160,6 +162,10 @@ export type MiniAppOperationMap = {
   exitFullscreen: { input: undefined; output: void };
   hideKeyboard: { input: undefined; output: void };
   setOrientationLock: { input: { locked: boolean }; output: void };
+  setScreenOrientation: {
+    input: { mode: ScreenOrientationMode };
+    output: { mode: ScreenOrientationMode };
+  };
   setButton: {
     input: { button: ButtonId; params: ButtonParams };
     output: void;

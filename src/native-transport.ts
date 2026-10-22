@@ -50,6 +50,7 @@ const operationCapabilities = {
   exitFullscreen: "fullscreen",
   hideKeyboard: "hideKeyboard",
   setOrientationLock: "orientation",
+  setScreenOrientation: "screenOrientation",
   setButton: "backButton",
   setClosingConfirmation: "closingConfirmation",
   setVerticalSwipes: "verticalSwipes",
@@ -560,7 +561,18 @@ function normalizeEventPayload(
 function normalizeOperationResult(
   operation: LoNativeOperation,
   value: unknown,
+  input: unknown,
 ): unknown | null {
+  if (operation === "setScreenOrientation") {
+    const result = record(value);
+    return result &&
+      Object.keys(result).length === 1 &&
+      Object.hasOwn(result, "mode") &&
+      (result.mode === "portrait" || result.mode === "auto") &&
+      result.mode === record(input)?.mode
+      ? { mode: result.mode }
+      : null;
+  }
   if (operation === "requestContactsProof") {
     const result = record(value);
     return result && boundedString(result.proof, 16_384)
@@ -921,7 +933,11 @@ function request<K extends LoNativeOperation>(
           error: new MiniAppError("invalid-response", "Invalid LO host result"),
         });
       } else {
-        const normalized = normalizeOperationResult(operation, envelope.value);
+        const normalized = normalizeOperationResult(
+          operation,
+          envelope.value,
+          input,
+        );
         const nullable =
           operation === "readClipboard" ||
           operation === "getLocation" ||

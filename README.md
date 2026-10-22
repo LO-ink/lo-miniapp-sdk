@@ -318,3 +318,35 @@ mandatory even when a signature is valid. A developer knows its own app key and
 can sign arbitrary candidate IDs: HMAC alone does not prove app membership.
 Missing audience storage or a failed membership lookup must fail closed; an
 empty verified audience returns a signed empty proof without reading the graph.
+
+### Target screen orientation
+
+SDK 0.25 adds the separate `screenOrientation` capability. An updated native
+host must advertise both this capability and the `setScreenOrientation`
+operation; SDK installation alone does not upgrade an installed LO client.
+
+```ts
+if (client.supports("screenOrientation")) {
+  const applied = await client.call("setScreenOrientation", {
+    mode: "portrait",
+  });
+  // A successful response confirms the host applied the requested mode.
+  console.log(applied.mode); // "portrait"
+} else {
+  // Explain that portrait locking requires an updated LO client.
+}
+```
+
+Only `{ mode: "portrait" }` and `{ mode: "auto" }` are accepted. `auto` releases
+this mini-app's orientation restriction; it does not override device policy or
+another native screen's ownership. The host restores the previous owner on
+mini-app teardown. Native refusal rejects the call; callers must handle it and
+must not start portrait-only interaction as if locking succeeded. Cancellation
+and timeouts use the usual `signal` and `timeoutMs` call options. A returned mode
+that differs from the request, or a malformed result, rejects with
+`invalid-response`.
+
+`setOrientationLock({ locked: true })` remains unchanged: it locks the **current**
+orientation and cannot promise portrait when launched in landscape. Older hosts
+with only `orientation` reject the new operation as `unsupported`; do not fall
+back to locking the current orientation and claim portrait support.

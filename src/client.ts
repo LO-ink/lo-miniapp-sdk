@@ -22,6 +22,7 @@ const operationCapability = {
   exitFullscreen: "fullscreen",
   hideKeyboard: "hideKeyboard",
   setOrientationLock: "orientation",
+  setScreenOrientation: "screenOrientation",
   setButton: "mainButton",
   setClosingConfirmation: "closingConfirmation",
   setVerticalSwipes: "verticalSwipes",
@@ -178,6 +179,20 @@ export function createMiniAppClient(adapter: MiniAppAdapter): MiniAppClient {
           : operationCapability[operation];
       if (capability && !adapter.capabilities.has(capability)) {
         throw new MiniAppError("unsupported", `${operation} is not supported`);
+      }
+      if (operation === "setScreenOrientation") {
+        const target = input as { mode?: unknown } | null;
+        if (
+          !target ||
+          typeof target !== "object" ||
+          Array.isArray(target) ||
+          Object.keys(target).length !== 1 ||
+          !Object.hasOwn(target, "mode") ||
+          (target.mode !== "portrait" && target.mode !== "auto")
+        )
+          throw new TypeError(
+            "Expected screen orientation mode portrait or auto",
+          );
       }
       const timeoutMs =
         options.timeoutMs ?? defaultTimeout[operation] ?? 30_000;
