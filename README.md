@@ -272,8 +272,9 @@ installation; loopback HTTP is allowed for tests and local development only.
 
 HTTP 403 means `permission_required` (Node `ContactsPermissionRequired`, Go
 `contacts.ErrPermissionRequired`); it must not become an empty ranking. 429
-carries `Retry-After`; 503 means unavailable. Helpers do not automatically retry
-or hide either failure. A new native LO can bootstrap the grant through the
+carries `Retry-After`; 503 means unavailable. Single-proof helpers expose both
+failures; batch matching retries 429 as described below and never returns partial
+results. A new native LO can bootstrap the grant through the
 existing `requestContactsProof` consent flow. Older hosts may still use its
 session-only proof path; they do not silently acquire background permission.
 Once a stored grant exists, server queries work regardless of which host
