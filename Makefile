@@ -35,7 +35,7 @@ secrets:
 	$(NPM) run secrets
 
 GO_DIR := go
-export GOTOOLCHAIN := go1.27.3
+export GOTOOLCHAIN := go1.27.4
 
 .PHONY: go-ci go-format go-lint go-test go-security
 go-ci: go-format go-lint go-test go-security
