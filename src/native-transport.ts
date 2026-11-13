@@ -851,6 +851,7 @@ function request<K extends LoNativeOperation>(
   context: RequestContext,
 ): AdapterRequest<OperationOutput<K>> {
   const signal = context.signal;
+  let requestInput: unknown = input;
   requestSequence += 1n;
   const id = `r_${requestNamespace()}_${adapterId}_${requestSequence.toString(36)}`;
   if (state.pending.size >= MAX_PENDING_REQUESTS) {
@@ -918,6 +919,8 @@ function request<K extends LoNativeOperation>(
   }
 
   try {
+    if (operation === "setScreenOrientation")
+      requestInput = { mode: record(input)?.mode };
     const release = connection.subscribeResult(id, (envelope) => {
       if (!active || cancelling) return;
       if (envelope.kind !== "result" || typeof envelope.ok !== "boolean") {
@@ -956,7 +959,7 @@ function request<K extends LoNativeOperation>(
         const normalized = normalizeOperationResult(
           operation,
           envelope.value,
-          input,
+          requestInput,
         );
         const nullable =
           operation === "readClipboard" ||
@@ -1019,7 +1022,7 @@ function request<K extends LoNativeOperation>(
       id,
       operation,
     };
-    if (input !== undefined) envelope.input = input;
+    if (requestInput !== undefined) envelope.input = requestInput;
     const raw = serialize(envelope);
     posted = true;
     port.postMessage(raw);
