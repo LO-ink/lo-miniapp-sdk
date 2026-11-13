@@ -1070,6 +1070,29 @@ test("target screen orientation sends the requested mode and rejects malformed o
   client.dispose();
 });
 
+test("target screen orientation compares replies with the sent mode after caller mutation", async () => {
+  const host = nativePort({
+    operations: ["setScreenOrientation"],
+    capabilities: ["screenOrientation"],
+  });
+  const client = createLoClient({ LO: { MiniAppNative: host.port } });
+  const input = { mode: "portrait" };
+  const accepted = client.call("setScreenOrientation", input);
+  const request = host.messages.at(-1);
+  input.mode = "auto";
+  assert.deepEqual(request.input, { mode: "portrait" });
+  result(host, request, { ok: true, value: { mode: "portrait" } });
+  assert.deepEqual(await accepted, { mode: "portrait" });
+
+  input.mode = "portrait";
+  const rejected = client.call("setScreenOrientation", input);
+  const nextRequest = host.messages.at(-1);
+  input.mode = "auto";
+  result(host, nextRequest, { ok: true, value: { mode: "auto" } });
+  await assert.rejects(rejected, { code: "invalid-response" });
+  client.dispose();
+});
+
 test("target screen orientation validates input before transport and preserves cancellation and host refusal", async () => {
   const host = nativePort({
     operations: ["setScreenOrientation"],
