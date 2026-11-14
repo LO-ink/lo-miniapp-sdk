@@ -49,6 +49,16 @@ test("cached sessions require the same signed launch, adapter identity and serve
   assert.equal(other.count(), 1);
 });
 
+test("session cache uses the launch and identity sent to the backend", async () => {
+  const f = fixture();
+  const adapter = { ...f.adapter };
+  const pending = authenticate(adapter, f.options);
+  adapter.id = "other-provider";
+  adapter.launchData = "different-launch";
+  assert.deepEqual(await pending, { token: "session-1", startParam: "game" });
+  assert.equal(JSON.parse(f.entries.get("session")).adapterId, "lo");
+});
+
 test("confirmed expired sessions authenticate again; validation outages propagate", async () => {
   const f = fixture();
   await authenticate(f.adapter, f.options);

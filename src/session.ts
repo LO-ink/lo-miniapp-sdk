@@ -19,11 +19,12 @@ export async function authenticate<T extends AppSession>(
     storage?: Storage | null;
   },
 ): Promise<AppSession> {
+  const { id: adapterId, launchData } = adapter;
   let fingerprint = "";
   if (globalThis.crypto?.subtle) {
     const digest = await globalThis.crypto.subtle.digest(
       "SHA-256",
-      new TextEncoder().encode(adapter.launchData),
+      new TextEncoder().encode(launchData),
     );
     fingerprint = Array.from(new Uint8Array(digest), (byte) =>
       byte.toString(16).padStart(2, "0"),
@@ -40,7 +41,7 @@ export async function authenticate<T extends AppSession>(
     const value = cached as Record<string, unknown>;
     if (
       value.fingerprint === fingerprint &&
-      value.adapterId === adapter.id &&
+      value.adapterId === adapterId &&
       typeof value.token === "string" &&
       value.token &&
       typeof value.startParam === "string"
@@ -54,8 +55,8 @@ export async function authenticate<T extends AppSession>(
     }
   }
   const session = await options.authenticate({
-    adapterId: adapter.id,
-    launchData: adapter.launchData,
+    adapterId,
+    launchData,
   });
   if (
     typeof session.token !== "string" ||
@@ -69,7 +70,7 @@ export async function authenticate<T extends AppSession>(
       storage?.setItem(
         options.storageKey,
         JSON.stringify({
-          adapterId: adapter.id,
+          adapterId,
           fingerprint,
           token: session.token,
           startParam: session.startParam,
